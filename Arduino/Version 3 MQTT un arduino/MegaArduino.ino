@@ -39,8 +39,8 @@ int ldr = A0; // broche sur laquelle est branchée la borne data de la LDR (le c
 // correspondant à chaque appareil seront branchés
 #define CHAUFF 8
 #define FOGGER 9
-#define POMPE 10
-#define VENT 11
+#define VENT 10
+#define POMPE 11
 #define LUMIERE 12
 //#define NOURRITURE 13
 
@@ -67,10 +67,10 @@ byte mac[] = { 0x90, 0xA2, 0xDA, 0x00, 0x4E, 0xB0 }; // Adresse MAC de l'arduino
 byte ip[] = { 192,168,0,28 }; // adresse IP arduino
 
 // Noms des topics où on publie ou lit des messages
-const char* topicTemperature = "InternetOfFrogs/Terrarium1/temperature";
-const char* topicHumidite = "InternetOfFrogs/Terrarium1/humidite";
-const char* topicLuminosite = "InternetOfFrogs/Terrarium1/luminosite";
-const char* topicManipulations = "InternetOfFrogs/Terrarium1/manipulation";
+const char* topicTemperature = "InternetOfFrogs/Terrarium1/Valeur/Temperature";
+const char* topicHumidite = "InternetOfFrogs/Terrarium1/Valeur/Humidite";
+const char* topicLuminosite = "InternetOfFrogs/Terrarium1/Valeur/Luminosite";
+const char* topicManipulations = "InternetOfFrogs/Terrarium1/Manipulation";
 
 char* manip; // ordre reçu (ex: allumer le chauffage)
 char printbuf[100]; //Tampon pour envoyer et recevoir des messages
@@ -260,7 +260,7 @@ void pushData(int valeur, const char *topic)
      int rc = client.publish(topic, message);
 }
 
-// Reçoit un ordre de manipulation à faire
+// Reception d'un ordre de manipulation
 void messageManipArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
@@ -301,12 +301,12 @@ void connect()
   Serial1.println("Connexion a MQTT");
   MQTTPacket_connectData data = MQTTPacket_connectData_initializer;       
   data.MQTTVersion = 3;
-  data.clientID.cstring = (char*)"arduino-sample";
+  data.clientID.cstring = (char*)"arduino-mega";
   rc = client.connect(data);
   afficherRcAnormal("MQTT connect rc: ", rc, 0);
   Serial1.println("Connecte a MQTT");  
 
-  rc = client.subscribe(topicManipulations, MQTT::QOS1, messageManipArrived);   
+  rc = client.subscribe(topicManipulations, MQTT::QOS1, messageManipArrived);
   afficherRcAnormal("MQTT manipulation subscribe rc: ", rc, 0);
   Serial1.print("Souscrit a ");
   Serial1.println(topicManipulations);
@@ -325,8 +325,8 @@ void setup()
 
   pinMode(CHAUFF, OUTPUT); // on va envoyer des ordres sur telle et telle broche
   pinMode(FOGGER, OUTPUT);
-  pinMode(POMPE, OUTPUT);
   pinMode(VENT, OUTPUT);
+  pinMode(POMPE, OUTPUT);
   pinMode(LUMIERE, OUTPUT);
   pompe (ALLUMER); // on allume la cascade et on n'y touche plus
 

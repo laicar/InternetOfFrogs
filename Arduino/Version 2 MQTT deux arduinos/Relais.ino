@@ -1,6 +1,5 @@
 /*
- * En cours d'écriture
- * Relais.ino version 2 (Communication MQTT)
+ * Relais.ino v2 (Communication MQTT entre un capteur et un relais)
  * Contributors: Nicolas MULLER, Guy SINNIG, Carole LAI TONG
  */
 
@@ -9,98 +8,157 @@
 #include <IPStack.h>
 #include <Countdown.h>
 #include <MQTTClient.h>
-//#include <Wire.h>
-//#include <RTClib.h>
+#include <Wire.h>
+#include <RTClib.h>
 
 char hostname[] = "192.168.0.9"; // Adresse IP du broker
 int port = 1883; // Port utilisé par le broker
 byte mac[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x54 };  // adresse MAC arduino
 byte ip[] = { 192,168,0,27 }; // adresse IP arduino récepteur
 
-char printbuf[100];
-//int arrivedcount = 0;
 EthernetClient c;
 IPStack ipstack(c);
-//MQTT::Message message;
 MQTT::Client<IPStack, Countdown> client = MQTT::Client<IPStack, Countdown>(ipstack);
 
-char* manip;
-unsigned lum;
-float hum;
-float temp;
+#define CHAUFF 8
+#define FOGGER 9
+#define VENT 10
+//#define POMPE 11
+//#define LUMIERE 12
+//#define NOURRITURE 13
 
-void msgLumArrived(MQTT::MessageData& md)
+#define H_MATIN 7
+#define H_SOIR 19
+
+#define ALLUMER 0
+#define ETEINDRE 1
+
+RTC_DS1307 rtc;
+bool chaufOn = false;
+bool fogOn = true;
+bool ventOn = true;
+
+bool faitJour ()
 {
-  MQTT::Message &message = md.message;
-  /*sprintf(printbuf, "Message %d arrived: qos %d, retained %d, dup %d, packetid %d\n", 
-                ++arrivedcount, message.qos, message.retained, message.dup, message.id);
-  Serial.print(printbuf);*/
-  sprintf(printbuf, "Luminosite %s\n", (char*)message.payload);
-  Serial.print(printbuf);
-  lum = (unsigned)message.payload;
+  DateTime now = rtc.now(); // Récupère la date et l'heure actuelles
+  return (now.hour() > H_MATIN && now.hour() < H_SOIR);
+}
+
+void chauffage (const int action)
+{
+  if (action == ALLUMER && !chaufOn)
+  {
+    digitalWrite(CHAUFF,LOW);
+    chaufOn = true;
+  }
+  else if (action == ETEINDRE && chaufOn)
+  {
+    digitalWrite(CHAUFF,HIGH);
+    chaufOn = false;
+  }
+}
+
+void refroidissement (const int action)
+{
+  if (action == ALLUMER)
+  {
+    humidificateur(ALLUMER);
+    ventilation(ALLUMER);
+  }
+  else if (action == ETEINDRE)
+  {
+    humidificateur(ETEINDRE);
+    ventilation(ETEINDRE);
+  }
+}
+
+void ventilation (const int action)
+{
+  if (action == ALLUMER && !ventOn)
+  {
+    digitalWrite(VENT,LOW);
+    ventOn = true;
+  }
+  else if (action == ETEINDRE && ventOn)
+  {
+    digitalWrite(VENT,HIGH);
+    ventOn = false;
+  }
+}
+
+void humidificateur (const int action)
+{
+  if (action == ALLUMER && !fogOn)
+  {
+    digitalWrite(FOGGER,LOW);
+    fogOn = true;
+  }
+  else if (action == ETEINDRE && fogOn)
+  {
+    digitalWrite(FOGGER,HIGH);
+    fogOn = false;
+  }
+}
+
+
+// /!\ Il y a des chances que ça se bloque quelquepart
+// entre le refroidissement et la régulation de l'humidité
+// et il faudrait peut-etre mettre de la ventilation périodique automatique
+
+
+void reguleTemp (float temp)
+{
+  if (temp < 22.0 || (faitJour() && temp < 24.0))
+    chauffage(ALLUMER);
+  else if (fogOn && ventOn &&
+           (temp < 22.5 || (faitJour() && temp < 24.5)))
+    refroidissement(ETEINDRE);
+  else if (temp > 25.5 || (!(faitJour()) && temp > 23.5))
+    chauffage(ETEINDRE);
+  else if (temp > 26.8 || (!(faitJour()) && temp > 24.8))
+    refroidissement(ALLUMER);
+}
+
+void reguleHum (float hum)
+{
+  if (hum < 69.0)
+    humidificateur(ALLUMER);
+  else if (hum < 72.0)
+    ventilation(ETEINDRE);
+  else if (hum > 78.0)
+    humidificateur(ETEINDRE);
+  else if (hum > 81.0)
+    ventilation(ALLUMER);
 }
 
 void msgTempArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
-  sprintf(printbuf, "Temperature %s\n", (char*)message.payload);
-  Serial.print(printbuf);
-  temp = (((float*)message.payload)[0]);
+  reguleTemp((((float*)message.payload)[0]));
 }
 
 void msgHumiArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
-  sprintf(printbuf, "Humidite %s\n", (char*)message.payload);
-  Serial.print(printbuf);
-  hum = (((float*)message.payload)[0]);
-}
-
-void afficherRcAnormal(char* msg, int rc, int successRc)
-{
-  if (rc != successRc)
-  Serial.print(msg);
-  Serial.println(rc);
-}
-
-void msgManipArrived(MQTT::MessageData& md)
-{
-  MQTT::Message &message = md.message;
-  sprintf(printbuf, "Manipulation %s\n", (char*)message.payload);
-  Serial.print(printbuf);
-  char* delim = {':'};
-  manip[0] = (char*)message.payload;
-  manip[0] = strtok(manip[0], delim);
-  manip[1] = strtok(NULL, delim);
+  reguleHum((((float*)message.payload)[0]));
 }
 
 // Connexion au Broker MQTT
 void connect()
 {
-  sprintf(printbuf, "Connecting to %s:%d\n", hostname, port);
-  Serial.print(printbuf);
-  int rc = ipstack.connect(hostname, port);
-  afficherRcAnormal("TCP connect rc: ", rc, 1);
+  ipstack.connect(hostname, port);
  
   MQTTPacket_connectData data = MQTTPacket_connectData_initializer;       
   data.MQTTVersion = 3;
-  data.clientID.cstring = (char*)"arduino-sample2";
-  rc = client.connect(data);
-  afficherRcAnormal("MQTT connect rc: ", rc, 0);
+  data.clientID.cstring = (char*)"arduino-relais";
+  client.connect(data);
   
-  rc = client.subscribe("InternetOfFrogs/temperature", MQTT::QOS1, msgTempArrived);   
-  afficherRcAnormal("MQTT temperature subscribe rc: ", rc, 0);
-  rc = client.subscribe("InternetOfFrogs/humidite", MQTT::QOS1, msgHumiArrived);   
-  afficherRcAnormal("MQTT humidite subscribe rc: ", rc, 0);
-  rc = client.subscribe("InternetOfFrogs/luminosite", MQTT::QOS1, msgLumArrived);   
-  afficherRcAnormal("MQTT luminosite subscribe rc: ", rc, 0);
-  rc = client.subscribe("InternetOfFrogs/manipulation", MQTT::QOS1, msgManipArrived);   
-  afficherRcAnormal("MQTT manipulation subscribe rc: ", rc, 0);
+  client.subscribe("InternetOfFrogs/Terrarium1/Valeur/Temperature", MQTT::QOS1, msgTempArrived);
+  client.subscribe("InternetOfFrogs/Terrarium1/Valeur/Humidite", MQTT::QOS1, msgHumiArrived);
 }
 
 void setup()
 {
-  Serial.begin(9600);
   Ethernet.begin(mac,ip);
   connect();
 }
