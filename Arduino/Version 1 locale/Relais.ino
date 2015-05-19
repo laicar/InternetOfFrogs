@@ -1,7 +1,8 @@
 /*
-* Relais.ino
+* Relais.ino Version sans communication
 * Programme pour allumer et éteindre des appareil électriques
 * avec un ou plusieurs module(s) double relais Arduino
+* et une horloge rtc pour savoir s'il fait jour ou non
 */
 
 #include <Wire.h>
@@ -11,25 +12,25 @@
 // correspondant à chaque appareil seront branchés
 #define CHAUFF 8
 #define FOGGER 9
-#define POMPE 10
-#define VENT 11
-#define LUMIERE 12
+#define VENT 10
+//#define POMPE 11
+//#define LUMIERE 12
 //#define NOURRITURE 13
 
-#define H_MATIN 7
-#define H_SOIR 19
+#define H_MATIN 6
+#define H_SOIR 20
 
 #define ALLUMER 0
 #define ETEINDRE 1
-#define AUTO 2
+//#define AUTO 2
 
 RTC_DS1307 rtc;
 bool chaufOn = false;
 bool fogOn = true;
 bool pompeOn = false;
 bool ventOn = true;
-bool lumAuto = true;
-uint32_t heureMiseLumiereManuelle;
+//bool lumAuto = true;
+//uint32_t heureMiseLumiereManuelle;
 
 void chauffage (int action)
 {
@@ -92,7 +93,7 @@ void humidificateur (int action)
     Serial.println("Eteint le mist fogger");
   }
 }
-
+/*
 void pompe (int action)
 {
   if (action == ALLUMER && !pompeOn)
@@ -142,7 +143,7 @@ void lampe (int action)
     Serial.println("Eteint la lumiere manuellement");
   }
 }
-
+*/
 bool faitJour ()
 {
   DateTime now = rtc.now();
@@ -185,22 +186,21 @@ void setup()
   Serial.begin(9600);
   pinMode(CHAUFF, OUTPUT);
   pinMode(FOGGER, OUTPUT);
-  pinMode(POMPE, OUTPUT);
   pinMode(VENT, OUTPUT);
-  pinMode(LUMIERE, OUTPUT);
-  pompe (ALLUMER); // on allume la cascade et on n'y touche plus
+  //pinMode(POMPE, OUTPUT);
+  //pinMode(LUMIERE, OUTPUT);
+  //pompe (ALLUMER); // on allume la cascade et on n'y touche plus
   rtc.begin();
 }
 
   void loop()
 {
   // TODO: lecture/reception valeurs captées...
-  // TODO: réception des ordres manuels, conditions d'arret du mode manuel
-  float hum;
-  float temp;
+  float hum = 42.42;
+  float temp = 10.25;
 
   reguleTemp(temp);
   reguleHum(hum);
-  lampe(AUTO);
+  //lampe(AUTO);
   delay(60000); // attend une minute
 }

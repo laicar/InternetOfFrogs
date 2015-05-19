@@ -1,6 +1,6 @@
 /*
- * Recepteur.ino
- * Copyleft (c) 2014 LabAixBidouille
+ * En cours d'écriture
+ * Relais.ino version 2 (Communication MQTT)
  * Contributors: Nicolas MULLER, Guy SINNIG, Carole LAI TONG
  */
 
@@ -29,7 +29,7 @@ unsigned lum;
 float hum;
 float temp;
 
-void messageLumArrived(MQTT::MessageData& md)
+void msgLumArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
   /*sprintf(printbuf, "Message %d arrived: qos %d, retained %d, dup %d, packetid %d\n", 
@@ -40,7 +40,7 @@ void messageLumArrived(MQTT::MessageData& md)
   lum = (unsigned)message.payload;
 }
 
-void messageTempArrived(MQTT::MessageData& md)
+void msgTempArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
   sprintf(printbuf, "Temperature %s\n", (char*)message.payload);
@@ -48,7 +48,7 @@ void messageTempArrived(MQTT::MessageData& md)
   temp = (((float*)message.payload)[0]);
 }
 
-void messageHumiArrived(MQTT::MessageData& md)
+void msgHumiArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
   sprintf(printbuf, "Humidite %s\n", (char*)message.payload);
@@ -63,7 +63,7 @@ void afficherRcAnormal(char* msg, int rc, int successRc)
   Serial.println(rc);
 }
 
-void messageManipArrived(MQTT::MessageData& md)
+void msgManipArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
   sprintf(printbuf, "Manipulation %s\n", (char*)message.payload);
@@ -88,13 +88,13 @@ void connect()
   rc = client.connect(data);
   afficherRcAnormal("MQTT connect rc: ", rc, 0);
   
-  rc = client.subscribe("InternetOfFrogs/temperature", MQTT::QOS1, messageTempArrived);   
+  rc = client.subscribe("InternetOfFrogs/temperature", MQTT::QOS1, msgTempArrived);   
   afficherRcAnormal("MQTT temperature subscribe rc: ", rc, 0);
-  rc = client.subscribe("InternetOfFrogs/humidite", MQTT::QOS1, messageHumiArrived);   
+  rc = client.subscribe("InternetOfFrogs/humidite", MQTT::QOS1, msgHumiArrived);   
   afficherRcAnormal("MQTT humidite subscribe rc: ", rc, 0);
-  rc = client.subscribe("InternetOfFrogs/luminosite", MQTT::QOS1, messageLumArrived);   
+  rc = client.subscribe("InternetOfFrogs/luminosite", MQTT::QOS1, msgLumArrived);   
   afficherRcAnormal("MQTT luminosite subscribe rc: ", rc, 0);
-  rc = client.subscribe("InternetOfFrogs/manipulation", MQTT::QOS1, messageManipArrived);   
+  rc = client.subscribe("InternetOfFrogs/manipulation", MQTT::QOS1, msgManipArrived);   
   afficherRcAnormal("MQTT manipulation subscribe rc: ", rc, 0);
 }
 
