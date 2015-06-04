@@ -13,24 +13,19 @@
 #define CHAUFF 8
 #define FOGGER 9
 #define VENT 10
-//#define POMPE 11
-//#define LUMIERE 12
-//#define NOURRITURE 13
+#define LUMIERE 11
 
 #define H_MATIN 6
 #define H_SOIR 20
 
 #define ALLUMER 0
 #define ETEINDRE 1
-//#define AUTO 2
 
 RTC_DS1307 rtc;
 bool chaufOn = false;
 bool fogOn = true;
 bool pompeOn = false;
 bool ventOn = true;
-//bool lumAuto = true;
-//uint32_t heureMiseLumiereManuelle;
 
 void chauffage (int action)
 {
@@ -93,57 +88,14 @@ void humidificateur (int action)
     Serial.println("Eteint le mist fogger");
   }
 }
-/*
-void pompe (int action)
+
+void lampe ()
 {
-  if (action == ALLUMER && !pompeOn)
-  {
-    digitalWrite(POMPE,LOW);
-    pompeOn = true;
-    Serial.println("Allume la pompe a eau");
-  }
-  else if (action == ETEINDRE && pompeOn)
-  {
-    digitalWrite(POMPE,HIGH);
-    pompeOn = false;
-    Serial.println("Eteint la pompe a eau");
-  }
+  if (faitJour()) digitalWrite(LUMIERE,LOW);
+  else digitalWrite(LUMIERE,HIGH);
+  
 }
 
-void lampe (int action)
-{
-  if (action == AUTO)
-  {
-    if (lumAuto)
-    {
-      if (faitJour()) digitalWrite(LUMIERE,LOW);
-      else digitalWrite(LUMIERE,HIGH);
-    }
-    else
-    {// La lumière est bloquée en mode manuel une minute
-      if (rtc.now().unixtime() > (heureMiseLumiereManuelle + 60)) 
-      {
-        lumAuto = true;
-        Serial.println("La lumiere est revenue en mode automatique");
-      }
-    }
-  }
-  else if (action == ALLUMER)
-  {
-    heureMiseLumiereManuelle = rtc.now().unixtime();
-    lumAuto = false;
-    digitalWrite(LUMIERE,LOW);
-    Serial.println("Allume la lumiere manuellement");
-  }
-  else if (action == ETEINDRE)
-  {
-    heureMiseLumiereManuelle = rtc.now().unixtime();
-    lumAuto = false;
-    digitalWrite(LUMIERE,HIGH);
-    Serial.println("Eteint la lumiere manuellement");
-  }
-}
-*/
 bool faitJour ()
 {
   DateTime now = rtc.now();
@@ -163,9 +115,9 @@ void reguleTemp (float temp)
   else if (fogOn && ventOn &&
            (temp < 22.5 || (faitJour() && temp < 24.5)))
     refroidissement(ETEINDRE);
-  else if (temp > 25.5 || (!(faitJour()) && temp > 23.5))
+  else if (temp > 25.0 || (!(faitJour()) && temp > 23.0))
     chauffage(ETEINDRE);
-  else if (temp > 26.8 || (!(faitJour()) && temp > 24.8))
+  else if (temp > 26.0 || (!(faitJour()) && temp > 24.0))
     refroidissement(ALLUMER);
 }
 
@@ -187,9 +139,7 @@ void setup()
   pinMode(CHAUFF, OUTPUT);
   pinMode(FOGGER, OUTPUT);
   pinMode(VENT, OUTPUT);
-  //pinMode(POMPE, OUTPUT);
-  //pinMode(LUMIERE, OUTPUT);
-  //pompe (ALLUMER); // on allume la cascade et on n'y touche plus
+  pinMode(LUMIERE, OUTPUT);
   rtc.begin();
 }
 
@@ -201,6 +151,6 @@ void setup()
 
   reguleTemp(temp);
   reguleHum(hum);
-  //lampe(AUTO);
+  lampe();
   delay(60000); // attend une minute
 }

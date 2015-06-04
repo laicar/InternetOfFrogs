@@ -14,9 +14,12 @@
 #include <IPStack.h>
 #include <Countdown.h>
 #include <MQTTClient.h> // Communication MQTT
-#include <DHT.h> // Capteurs humidité/température
 #include <Wire.h>
 #include <RTClib.h> // Horloge
+#include <Adafruit_Sensor.h> // Capteurs Adafruit unifiés
+#include <Adafruit_TSL2591.h> // Capteur de lumière TSL2591
+#include <DHT.h> // Capteur humidité/température
+#include <DHT_U.h> // Capteur humidité/température unifié
 
 /**************************
  * Déclaration et initialisation des variables
@@ -28,11 +31,8 @@
 #define DHTPIN 2 // la borne data du capteur temp/hum est branchée sur la broche 2
 #define DHTTYPE DHT22 // on utilise un capteur humidité/température DHT22
 
-DHT dht(DHTPIN, DHTTYPE); // on indique la broche et le type de capteur
-float h = 0;  // initialisation de la variable d'humidité
-float t = 0;  // initialisation de la variable de température
-int l = 0;  // initialisation de la variable d'éclairement
-int ldr = A0; // broche sur laquelle est branchée la borne data de la LDR (le capteur de lumière)
+DHT_Unified dht(DHTPIN, DHTTYPE); // on indique la broche et le type de capteur température/humidité
+Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); // on indique le type de capteur de luminosité
 
 // Variables Relais
 // Bornes sur lesquelles les cables du relais
@@ -40,24 +40,18 @@ int ldr = A0; // broche sur laquelle est branchée la borne data de la LDR (le c
 #define CHAUFF 8
 #define FOGGER 9
 #define VENT 10
-#define POMPE 11
-#define LUMIERE 12
-//#define NOURRITURE 13
+#define LUMIERE 11
 
 #define H_MATIN 7
 #define H_SOIR 19
 
 #define ALLUMER 0
 #define ETEINDRE 1
-#define AUTO 2
 
 RTC_DS1307 rtc;
 bool chaufOn = false;
 bool fogOn = true;
-bool pompeOn = false;
 bool ventOn = true;
-bool lumAuto = true;
-uint32_t heureMiseLumiereManuelle;
 
 // Variables MQTT
 char hostname[] = "192.168.0.9";// Adresse IP du broker
@@ -72,7 +66,6 @@ const char* topicHumidite = "InternetOfFrogs/Terrarium1/Valeur/Humidite";
 const char* topicLuminosite = "InternetOfFrogs/Terrarium1/Valeur/Luminosite";
 const char* topicManipulations = "InternetOfFrogs/Terrarium1/Manipulation";
 
-char* manip; // ordre reçu (ex: allumer le chauffage)
 char printbuf[100]; //Tampon pour envoyer et recevoir des messages
 char buf[200]; // Tampon pour recevoir et envoyer des messages de Quality of Service
 EthernetClient c;
@@ -87,6 +80,18 @@ MQTT::Client<IPStack, Countdown> client = MQTT::Client<IPStack, Countdown>(ipsta
  **************************/
 
  // Methodes pour la régulation du terrarium
+bool faitJour ()
+{
+  DateTime now = rtc.now(); // Récupère la date et l'heure actuelles
+  return (now.hour() >= H_MATIN && now.hour() < H_SOIR);
+}
+
+void lampe()
+{
+  if (faitJour()) digitalWrite(LUMIERE,LOW);
+  else digitalWrite(LUMIERE,HIGH);
+}
+
 void chauffage (const int action)
 {
   if (action == ALLUMER && !chaufOn)
@@ -149,62 +154,6 @@ void humidificateur (const int action)
   }
 }
 
-void pompe (const int action)
-{
-  if (action == ALLUMER && !pompeOn)
-  {
-    digitalWrite(POMPE,LOW);
-    pompeOn = true;
-    Serial1.println("Allume la pompe a eau");
-  }
-  else if (action == ETEINDRE && pompeOn)
-  {
-    digitalWrite(POMPE,HIGH);
-    pompeOn = false;
-    Serial1.println("Eteint la pompe a eau");
-  }
-}
-
-void lampe (const int action)
-{
-  if (action == AUTO)
-  {
-    if (lumAuto)
-    {
-      if (faitJour()) digitalWrite(LUMIERE,LOW);
-      else digitalWrite(LUMIERE,HIGH);
-    }
-    else
-    {// La lumière est bloquée en mode manuel une minute
-      if (rtc.now().unixtime() > (heureMiseLumiereManuelle + 60)) 
-      {
-        lumAuto = true;
-        Serial1.println("La lumiere est revenue en mode automatique");
-      }
-    }
-  }
-  else if (action == ALLUMER)
-  {
-    heureMiseLumiereManuelle = rtc.now().unixtime();
-    lumAuto = false;
-    digitalWrite(LUMIERE,LOW);
-    Serial1.println("Allume la lumiere manuellement");
-  }
-  else if (action == ETEINDRE)
-  {
-    heureMiseLumiereManuelle = rtc.now().unixtime();
-    lumAuto = false;
-    digitalWrite(LUMIERE,HIGH);
-    Serial1.println("Eteint la lumiere manuellement");
-  }
-}
-
-bool faitJour ()
-{
-  DateTime now = rtc.now(); // Récupère la date et l'heure actuelles
-  return (now.hour() > H_MATIN && now.hour() < H_SOIR);
-}
-
 
 // /!\ Il y a des chances que ça se bloque quelquepart
 // entre le refroidissement et la régulation de l'humidité
@@ -218,9 +167,9 @@ void reguleTemp (float temp)
   else if (fogOn && ventOn &&
            (temp < 22.5 || (faitJour() && temp < 24.5)))
     refroidissement(ETEINDRE);
-  else if (temp > 25.5 || (!(faitJour()) && temp > 23.5))
+  else if (temp > 25.0 || (!(faitJour()) && temp > 23.0))
     chauffage(ETEINDRE);
-  else if (temp > 26.8 || (!(faitJour()) && temp > 24.8))
+  else if (temp > 26.0 || (!(faitJour()) && temp > 24.0))
     refroidissement(ALLUMER);
 }
 
@@ -236,9 +185,7 @@ void reguleHum (float hum)
     ventilation(ALLUMER);
 }
 
-/**************************
- * Methodes pour la communication MQTT
- **************************/
+// Methodes pour la communication MQTT
 
 void afficherRcAnormal(char* msg, int rc, int successRc)
 {
@@ -281,12 +228,6 @@ void messageManipArrived(MQTT::MessageData& md)
     case FOGGER:
       humidificateur(action);
       break;
-    case POMPE:
-      pompe(action);
-      break;
-    case LUMIERE:
-      lampe(action);
-      break;
   }
 }
 
@@ -326,9 +267,7 @@ void setup()
   pinMode(CHAUFF, OUTPUT); // on va envoyer des ordres sur telle et telle broche
   pinMode(FOGGER, OUTPUT);
   pinMode(VENT, OUTPUT);
-  pinMode(POMPE, OUTPUT);
   pinMode(LUMIERE, OUTPUT);
-  pompe (ALLUMER); // on allume la cascade et on n'y touche plus
 
   rtc.begin(); // mise en route de l'horloge
   dht.begin(); // mise en route du capteur humidité/température
@@ -339,45 +278,48 @@ void setup()
  **************************/
 void loop()
 {
-  if (!client.isConnected()) connect(); // si le client est déconnecté on le reconnecte
-
-  // Mesure
-  l = analogRead(ldr); // mesure de la lumière reçue par la LDR
-  // convertion de la valeur lue en pourcentage de luminosité captable par ce capteur:
-  l = map (l,0,1023,100,0); // plus il y a de lumière plus la valeur sera proche de 100
-  h = dht.readHumidity(); // mesure de l'humidité
-  t = dht.readTemperature(); // mesure de la température
-
-  // Envoi des mesures sur le web
-  // Teste si le capteur n'arrive pas à lire correctement et ne renvoie pas un nombre
-  if (isnan(l))
+  sensors_event_t event;
+  
+  // Lumière
+  tsl.getEvent(&event);
+  if ((event.light == 0.0) |
+      (event.light > 4294966000.0) | 
+      (event.light <-4294966000.0))
   {
-    Serial1.println("Erreur luminosite");
+/* If event.light = 0 lux the sensor is probably saturated
+ * and no reliable data could be generated!
+ * if event.light is +/- 4294967040 there was a float over/underflow */
+    Serial.println("Erreur luminosite");
   }
   else
   {
-    pushData(l, topicLuminosite); // envoie la valeur de luminosité avec le bon topic
-  }
-  if (isnan(t) || t == 0.00)
-  {
-    Serial1.println("Erreur temperature");
-  }
-  else
-  {
-    pushData(t, topicTemperature);
-  }
-  if (isnan(h) || h == 0.00)
-  {
-    Serial1.println("Erreur humidite");
-  }
-  else
-  {
-    pushData(h, topicHumidite);
+    pushData(event.light, topicLuminosite); // envoie la valeur de luminosité sur le topic correspondant
   }
 
-  // Régulation du terrarium (si nécessaire)
-  reguleTemp(t);
-  reguleHum(h);
-  lampe(AUTO);
+  // Température
+  dht.temperature().getEvent(&event);
+  if (isnan(event.temperature))
+  {
+    Serial.println("Erreur temperature");
+  }
+  else
+  {
+    pushData(event.temperature, topicTemperature);
+    reguleTemp(event.temperature);
+  }
+
+  // Humidite
+  dht.humidity().getEvent(&event);
+  if (isnan(event.relative_humidity) || event.relative_humidity == 0.0)
+  {
+    Serial.println("Erreur humidite");
+  }
+  else
+  {
+    pushData(event.relative_humidity, topicHumidite);
+    reguleHum(event.relative_humidity);
+  }
+  lampe();
   delay(60000); // attente de 1 minute avant de recommencer la boucle
+  if (!client.isConnected()) connect(); // si le client est déconnecté on le reconnecte
 }

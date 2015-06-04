@@ -1,5 +1,6 @@
 /*
- * Relais.ino v2 (Communication MQTT entre un capteur et un relais)
+ * Relais.ino
+ * Communication MQTT 
  * Contributors: Nicolas MULLER, Guy SINNIG, Carole LAI TONG
  */
 
@@ -13,8 +14,8 @@
 
 char hostname[] = "192.168.0.9"; // Adresse IP du broker
 int port = 1883; // Port utilisé par le broker
-byte mac[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x54 };  // adresse MAC arduino
-byte ip[] = { 192,168,0,27 }; // adresse IP arduino récepteur
+byte mac[] = { 0x90, 0xA2, 0xDA, 0x0F, 0x76, 0xEC };  // adresse MAC de l'arduino
+byte ip[] = { 192,168,0,27 }; // adresse IP de l'arduino
 
 EthernetClient c;
 IPStack ipstack(c);
@@ -23,9 +24,7 @@ MQTT::Client<IPStack, Countdown> client = MQTT::Client<IPStack, Countdown>(ipsta
 #define CHAUFF 8
 #define FOGGER 9
 #define VENT 10
-//#define POMPE 11
-//#define LUMIERE 12
-//#define NOURRITURE 13
+#define LUMIERE 11
 
 #define H_MATIN 7
 #define H_SOIR 19
@@ -41,7 +40,14 @@ bool ventOn = true;
 bool faitJour ()
 {
   DateTime now = rtc.now(); // Récupère la date et l'heure actuelles
-  return (now.hour() > H_MATIN && now.hour() < H_SOIR);
+  return (now.hour() >= H_MATIN && now.hour() < H_SOIR);
+}
+
+void lampe ()
+{
+  if (faitJour()) digitalWrite(LUMIERE,LOW);
+  else digitalWrite(LUMIERE,HIGH);
+  
 }
 
 void chauffage (const int action)
@@ -113,9 +119,9 @@ void reguleTemp (float temp)
   else if (fogOn && ventOn &&
            (temp < 22.5 || (faitJour() && temp < 24.5)))
     refroidissement(ETEINDRE);
-  else if (temp > 25.5 || (!(faitJour()) && temp > 23.5))
+  else if (temp > 25.0 || (!(faitJour()) && temp > 23.0))
     chauffage(ETEINDRE);
-  else if (temp > 26.8 || (!(faitJour()) && temp > 24.8))
+  else if (temp > 26.0 || (!(faitJour()) && temp > 24.0))
     refroidissement(ALLUMER);
 }
 
@@ -143,6 +149,29 @@ void msgHumiArrived(MQTT::MessageData& md)
   reguleHum((((float*)message.payload)[0]));
 }
 
+void messageManipArrived(MQTT::MessageData& md)
+{
+  MQTT::Message &message = md.message;
+  sprintf(printbuf, "Manipulation %s\n", (char*)message.payload);
+  Serial1.print(printbuf);//affiche le message sur le port série
+  char* msg = (char*)message.payload; //stocke le message
+  const char* delim = {":"};
+  int appareil = (int)strtok(msg, delim);// coupe le message en deux: la fonction à utiliser...
+  int action = (int)strtok(NULL, delim); // et l'action à faire
+  switch (appareil)
+  {
+    case CHAUFF:
+      chauffage(action);
+      break;
+    case VENT:
+      ventilation(action);
+      break;
+    case FOGGER:
+      humidificateur(action);
+      break;
+  }
+}
+
 // Connexion au Broker MQTT
 void connect()
 {
@@ -155,12 +184,16 @@ void connect()
   
   client.subscribe("InternetOfFrogs/Terrarium1/Valeur/Temperature", MQTT::QOS1, msgTempArrived);
   client.subscribe("InternetOfFrogs/Terrarium1/Valeur/Humidite", MQTT::QOS1, msgHumiArrived);
+  client.subscribe("InternetOfFrogs/Terrarium1/Manipulation", MQTT::QOS1, msgManipArrived);
 }
 
 void setup()
 {
   Ethernet.begin(mac,ip);
   connect();
+  pinMode(CHAUFF, OUTPUT); // on va envoyer des ordres sur telle et telle broche
+  pinMode(FOGGER, OUTPUT);
+  pinMode(VENT, OUTPUT);
 }
  
 void loop()
