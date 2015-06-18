@@ -1,5 +1,5 @@
 /**************************
- * Terrarium_MQTT.ino
+ * Terrarium_MQTT_compact.ino
  * Programme utilisant capteurs et relais pour maintenir 
  * des conditions tropicales. Utilise le protocole MQTT pour
  * envoyer les valeurs captées et recevoir des commandes via IP
@@ -29,7 +29,6 @@
  **************************/
 
 // Variables Capteurs
-
 // On utilise un capteur humidité/température DHT22
 // dont la borne data est branchée sur la broche 2
 DHT_Unified dht(2, DHT22);
@@ -66,19 +65,18 @@ int port = 1883;// Port utilisé par le broker
 byte mac[] = { 0x90, 0xA2, 0xDA, 0x0F, 0x76, 0xEC }; // Adresse MAC de l'arduino
 byte ip[] = { 192,168,0,28 }; // adresse IP de l'arduino
 
-// Noms des topics où on publie ou lit des messages
+// Noms des topics où on publie des messages
 const char* topicTemperature = "InternetOfFrogs/Terrarium1/Valeur/Temperature";
 const char* topicHumidite = "InternetOfFrogs/Terrarium1/Valeur/Humidite";
 const char* topicLuminosite = "InternetOfFrogs/Terrarium1/Valeur/Luminosite";
-const char* topicManipulations = "InternetOfFrogs/Terrarium1/Manipulation";
+// Noms des topics où on écoute des messages
+const char* topicManipulation = "InternetOfFrogs/Terrarium1/Manipulation";
 
-char buf[100]; //Tampon pour envoyer et recevoir des messages
+char buf[200]; //Tampon pour envoyer et recevoir des messages
 EthernetClient c;
 IPStack ipstack (c);
 MQTT::Message message; // crée un message MQTT (pour l'instant vide)
 MQTT::Client<IPStack, Countdown> client = MQTT::Client<IPStack, Countdown>(ipstack);
-
-
 
 /**************************
  * Methodes
@@ -91,8 +89,7 @@ bool faitJour ()
   return (now.hour() >= H_MATIN && now.hour() < H_SOIR);
 }
 
-void controller (const int appareil, bool& allume,
-                const int action, const char* nomAppareil)
+void controller (const int appareil, bool& allume, const int action)
 {
   if (action == AUTO)
   {
@@ -111,46 +108,37 @@ void controller (const int appareil, bool& allume,
   {
     digitalWrite(appareil, HIGH);
     allume = false;
-    Serial1.print("Eteint ");
-    Serial1.println(nomAppareil);
   }
   else if (action == ALLUMER && !allume)
   {
     digitalWrite(appareil, LOW);
     allume = true;
-    Serial1.print("Allume ");
-    Serial1.println(nomAppareil);
-  }
-  else
-  {
-    Serial1.print("Erreur avec ");
-    Serial1.println(nomAppareil);
   }
 }
 
 void lampe(/*const int action*/)
 {
-  controller (LUMIERE, lumOn, /*action*/ AUTO, "la lampe");
+  controller (LUMIERE, lumOn, /*action*/ AUTO);
 }
 
 void pompe (const int action)
 {
-  controller (POMPE, pompeOn, action, "la pompe a eau");
+  controller (POMPE, pompeOn, action);
 }
 
 void humidificateur (const int action)
 {
-  controller (BRUMISATEUR, fogOn, action, "le brumisateur");
+  controller (BRUMISATEUR, fogOn, action);
 }
 
 void ventilation (const int action)
 {
-  controller (VENTILATION, ventOn, action, "la ventilation");
+  controller (VENTILATION, ventOn, action);
 }
 
 void chauffage (const int action)
 {
-  controller (CHAUFFAGE, chaufOn, action, "le chauffage");
+  controller (CHAUFFAGE, chaufOn, action);
 }
 
 void refroidissement (const int action)
@@ -191,37 +179,26 @@ void reguleHum (float hum)
 
 // Methodes pour la communication MQTT
 
-void afficherRcAnormal(char* msg, int rc, int successRc)
-{
-  if (rc != successRc)
-  Serial1.print(msg);
-  Serial1.println(rc);
-}
-
 // Envoie une valeur sur le topic adequat
 void pushData(float valeur, const char* topic)
 {
-     sprintf(buf, "%f", valeur); // met la valeur dans le tampon buf
-     Serial1.println(buf); // envoie le contenu du tampon buf sur le port série
      message.retained = false;
      message.dup = false;
      message.payload = (void*)buf;
      message.qos = MQTT::QOS1;
      message.payloadlen = strlen(buf)+1;
-     int rc = client.publish(topic, message);
+     client.publish(topic, message);
 }
 
 // Reception d'un ordre de manipulation
 void messageManipArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
-  sprintf(buf, "Manipulation %s\n", (char*)message.payload);
-  Serial1.print(buf);//affiche le message sur le port série
   char* msg = (char*)message.payload; //stocke le message
   const char* delim = {":"};
   // coupe le message en deux: l'appareil et l'action à faire
-  int appareil = (int)strtok(msg, delim);
-  int action = (int)strtok(NULL, delim);
+  const int appareil = (int)strtok(msg, delim);
+  const int action = (int)strtok(NULL, delim);
   switch (appareil)
   {
     case CHAUFFAGE:
@@ -242,23 +219,13 @@ void messageManipArrived(MQTT::MessageData& md)
 // Fonction de connexion au broker MQTT
 void connect()
 {
-  sprintf(buf, "Connexion à %s:%d\n", hostname, port);
-  Serial1.print(buf);
-  int rc = ipstack.connect(hostname, port); // tentative de connexion
-  afficherRcAnormal("TCP connect rc: ", rc, 1);
+  ipstack.connect(hostname, port); // tentative de connexion au broker
  
-  Serial1.println("Connexion a MQTT");
   MQTTPacket_connectData data = MQTTPacket_connectData_initializer;       
   data.MQTTVersion = 3;
   data.clientID.cstring = (char*)"Terrarium1";
-  rc = client.connect(data);
-  afficherRcAnormal("MQTT connect rc: ", rc, 0);
-  Serial1.println("Connecte a MQTT");  
-
-  rc = client.subscribe(topicManipulations, MQTT::QOS1, messageManipArrived);
-  afficherRcAnormal("MQTT manipulation subscribe rc: ", rc, 0);
-  Serial1.print("Souscrit a ");
-  Serial1.println(topicManipulations);
+  client.connect(data);
+  client.subscribe(topicManipulation, MQTT::QOS1, messageManipArrived);
 }
 
 /**************************
@@ -266,11 +233,10 @@ void connect()
  **************************/
 void setup()
 {
-  Serial1.begin(9600);
-
   Ethernet.begin(mac,ip);
   connect(); // connexion au broker
-// on va envoyer des ordres sur telle et telle broche
+
+  // on va envoyer des ordres sur telle et telle broche
   pinMode(CHAUFFAGE, OUTPUT);
   pinMode(BRUMISATEUR, OUTPUT);
   pinMode(VENTILATION, OUTPUT);
@@ -279,8 +245,6 @@ void setup()
 
   rtc.begin(); // mise en route de l'horloge
   dht.begin(); // mise en route du capteur humidité/température
-  pompe (AUTO);
-  lampe (/*AUTO*/);
 }
 
 /**************************
@@ -288,31 +252,27 @@ void setup()
  **************************/
 void loop()
 {
+  lampe(/*AUTO*/);
+  pompe (AUTO);
+  
   sensors_event_t event;
   
   // Lumière
   tsl.getEvent(&event);
-  if ((event.light == 0.0) |
-      (event.light > 4294966000.0) | 
-      (event.light <-4294966000.0))
+  if ((event.light != 0.0) &&
+      (event.light <= 4294966000.0) && 
+      (event.light >= -4294966000.0))
   {
 /* If event.light = 0 lux the sensor is probably saturated
  * and no reliable data could be generated!
  * if event.light is +/- 4294967040 there was a float over/underflow */
-    Serial.println("Erreur luminosite");
+// envoie la valeur captée sur le topic correspondant si c'est bon
+    pushData(event.light, topicLuminosite);
   }
-  else
-  {
-    pushData(event.light, topicLuminosite); // envoie la valeur de luminosité sur le topic correspondant
-  }
-
+  
   // Température
   dht.temperature().getEvent(&event);
-  if (isnan(event.temperature))
-  {
-    Serial.println("Erreur temperature");
-  }
-  else
+  if (!isnan(event.temperature))
   {
     pushData(event.temperature, topicTemperature);
     reguleTemp(event.temperature);
@@ -320,17 +280,11 @@ void loop()
 
   // Humidite
   dht.humidity().getEvent(&event);
-  if (isnan(event.relative_humidity) || event.relative_humidity == 0.0)
-  {
-    Serial.println("Erreur humidite");
-  }
-  else
+  if (!isnan(event.relative_humidity))
   {
     pushData(event.relative_humidity, topicHumidite);
     reguleHum(event.relative_humidity);
   }
-  lampe(/*AUTO*/);
-  pompe (AUTO);
   delay(600000); // attente de 10 minutes avant de recommencer la boucle
   if (!client.isConnected()) connect(); // si le client est déconnecté on le reconnecte
 }

@@ -6,9 +6,11 @@ Système de domotique appliqué à un terrarium tropical communiquant via le pro
 **Matériel utilisé pour la partie électronique**
  - Raspberry Pi 
  - 2 Arduinos Uno ou 1 Arduino Mega selon la version du système utilisée
+ - Le nombre total d'Arduinos de shields Ethernet
+ - Le même nombre plus un câbles Ethernet
  - Capteur Adafruit TSL2591 (luminosité)
  - Capteur Adafruit DHT22 (température et humidité)
- - Module relais
+ - Modules relais pour 6 appareils
 
 **Librairies Arduino utilisées**
  - [Arduino MQTT Client](https://projects.eclipse.org/projects/technology.paho/downloads)

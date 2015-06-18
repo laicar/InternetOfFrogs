@@ -21,10 +21,11 @@ EthernetClient c;
 IPStack ipstack(c);
 MQTT::Client<IPStack, Countdown> client = MQTT::Client<IPStack, Countdown>(ipstack);
 
-#define CHAUFF 8
-#define FOGGER 9
-#define VENT 10
+#define CHAUFFAGE 8
+#define BRUMISATEUR 9
+#define VENTILATION 10
 #define LUMIERE 11
+#define POMPE 12
 
 #define H_MATIN 7
 #define H_SOIR 19
@@ -50,60 +51,72 @@ void lampe ()
   
 }
 
-void chauffage (const int action)
+void controller (const int appareil, bool& allume,
+                const int action, const char* nomAppareil)
 {
-  if (action == ALLUMER && !chaufOn)
+  if (action == AUTO)
   {
-    digitalWrite(CHAUFF,LOW);
-    chaufOn = true;
+    if (!allume && faitJour()) 
+    {
+      digitalWrite(appareil,LOW);
+      allume = true;
+    }
+    else if (allume && !faitJour())
+    {
+      digitalWrite(appareil,HIGH);
+      allume = false;
+    }
   }
-  else if (action == ETEINDRE && chaufOn)
+  else if (action == ETEINDRE && allume)
   {
-    digitalWrite(CHAUFF,HIGH);
-    chaufOn = false;
+    digitalWrite(appareil, HIGH);
+    allume = false;
+    Serial1.print("Eteint ");
+    Serial1.println(nomAppareil);
+  }
+  else if (action == ALLUMER && !allume)
+  {
+    digitalWrite(appareil, LOW);
+    allume = true;
+    Serial1.print("Allume ");
+    Serial1.println(nomAppareil);
+  }
+  else
+  {
+    Serial1.print("Erreur avec ");
+    Serial1.println(nomAppareil);
   }
 }
 
-void refroidissement (const int action)
+void lampe(/*const int action*/)
 {
-  if (action == ALLUMER)
-  {
-    humidificateur(ALLUMER);
-    ventilation(ALLUMER);
-  }
-  else if (action == ETEINDRE)
-  {
-    humidificateur(ETEINDRE);
-    ventilation(ETEINDRE);
-  }
+  controller (LUMIERE, &lumOn, /*action*/ AUTO, "la lampe");
 }
 
-void ventilation (const int action)
+void pompe (const int action)
 {
-  if (action == ALLUMER && !ventOn)
-  {
-    digitalWrite(VENT,LOW);
-    ventOn = true;
-  }
-  else if (action == ETEINDRE && ventOn)
-  {
-    digitalWrite(VENT,HIGH);
-    ventOn = false;
-  }
+  controller (POMPE, &pompeOn, action, "la pompe a eau");
 }
 
 void humidificateur (const int action)
 {
-  if (action == ALLUMER && !fogOn)
-  {
-    digitalWrite(FOGGER,LOW);
-    fogOn = true;
-  }
-  else if (action == ETEINDRE && fogOn)
-  {
-    digitalWrite(FOGGER,HIGH);
-    fogOn = false;
-  }
+  controller (BRUMISATEUR, &fogOn, action, "le brumisateur");
+}
+
+void ventilation (const int action)
+{
+  controller (VENTILATION, &ventOn, action, "la ventilation");
+}
+
+void chauffage (const int action)
+{
+  controller (CHAUFFAGE, &chaufOn, action, "le chauffage");
+}
+
+void refroidissement (const int action)
+{
+  humidificateur(action);
+  ventilation(action);
 }
 
 
@@ -156,18 +169,22 @@ void messageManipArrived(MQTT::MessageData& md)
   Serial1.print(printbuf);//affiche le message sur le port série
   char* msg = (char*)message.payload; //stocke le message
   const char* delim = {":"};
-  int appareil = (int)strtok(msg, delim);// coupe le message en deux: la fonction à utiliser...
-  int action = (int)strtok(NULL, delim); // et l'action à faire
+  // coupe le message en deux: la fonction à utiliser et l'action à faire
+  int appareil = (int)strtok(msg, delim);
+  int action = (int)strtok(NULL, delim);
   switch (appareil)
   {
-    case CHAUFF:
+    case CHAUFFAGE:
       chauffage(action);
       break;
-    case VENT:
+    case VENTILATION:
       ventilation(action);
       break;
-    case FOGGER:
+    case BRUMISATEUR:
       humidificateur(action);
+      break;
+    case POMPE:
+      pompe(action);
       break;
   }
 }
@@ -191,9 +208,15 @@ void setup()
 {
   Ethernet.begin(mac,ip);
   connect();
-  pinMode(CHAUFF, OUTPUT); // on va envoyer des ordres sur telle et telle broche
-  pinMode(FOGGER, OUTPUT);
-  pinMode(VENT, OUTPUT);
+  pinMode(CHAUFFAGE, OUTPUT); // on va envoyer des ordres sur telle et telle broche
+  pinMode(BRUMISATEUR, OUTPUT);
+  pinMode(VENTILATION, OUTPUT);
+  pinMode(LUMIERE, OUTPUT);
+  pinMode(POMPE, OUTPUT);
+
+  rtc.begin(); // mise en route de l'horloge
+  pompe (AUTO);
+  lampe (/*AUTO*/);
 }
  
 void loop()
