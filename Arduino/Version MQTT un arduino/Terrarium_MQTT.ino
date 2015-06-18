@@ -72,7 +72,7 @@ const char* topicHumidite = "InternetOfFrogs/Terrarium1/Valeur/Humidite";
 const char* topicLuminosite = "InternetOfFrogs/Terrarium1/Valeur/Luminosite";
 const char* topicManipulations = "InternetOfFrogs/Terrarium1/Manipulation";
 
-char buf[100]; //Tampon pour envoyer et recevoir des messages
+char buf[200]; //Tampon pour envoyer et recevoir des messages
 EthernetClient c;
 IPStack ipstack (c);
 MQTT::Message message; // crée un message MQTT (pour l'instant vide)
@@ -208,7 +208,7 @@ void pushData(float valeur, const char* topic)
      message.payload = (void*)buf;
      message.qos = MQTT::QOS1;
      message.payloadlen = strlen(buf)+1;
-     int rc = client.publish(topic, message);
+     /*int rc = */client.publish(topic, message);
 }
 
 // Reception d'un ordre de manipulation

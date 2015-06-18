@@ -32,11 +32,18 @@ MQTT::Client<IPStack, Countdown> client = MQTT::Client<IPStack, Countdown>(ipsta
 
 #define ALLUMER 0
 #define ETEINDRE 1
+#define AUTO 2
 
 RTC_DS1307 rtc;
 bool chaufOn = false;
 bool fogOn = true;
 bool ventOn = true;
+bool pompeOn = false;
+bool lumOn = false;
+
+const char* topicManipulations = "InternetOfFrogs/Terrarium1/Manipulation";
+
+char buf[200]; //Tampon pour envoyer et recevoir des messages
 
 bool faitJour ()
 {
@@ -44,15 +51,7 @@ bool faitJour ()
   return (now.hour() >= H_MATIN && now.hour() < H_SOIR);
 }
 
-void lampe ()
-{
-  if (faitJour()) digitalWrite(LUMIERE,LOW);
-  else digitalWrite(LUMIERE,HIGH);
-  
-}
-
-void controller (const int appareil, bool& allume,
-                const int action, const char* nomAppareil)
+void controller (const int appareil, bool& allume, const int action)
 {
   if (action == AUTO)
   {
@@ -71,46 +70,37 @@ void controller (const int appareil, bool& allume,
   {
     digitalWrite(appareil, HIGH);
     allume = false;
-    Serial1.print("Eteint ");
-    Serial1.println(nomAppareil);
   }
   else if (action == ALLUMER && !allume)
   {
     digitalWrite(appareil, LOW);
     allume = true;
-    Serial1.print("Allume ");
-    Serial1.println(nomAppareil);
-  }
-  else
-  {
-    Serial1.print("Erreur avec ");
-    Serial1.println(nomAppareil);
   }
 }
 
 void lampe(/*const int action*/)
 {
-  controller (LUMIERE, &lumOn, /*action*/ AUTO, "la lampe");
+  controller (LUMIERE, lumOn, /*action*/ AUTO);
 }
 
 void pompe (const int action)
 {
-  controller (POMPE, &pompeOn, action, "la pompe a eau");
+  controller (POMPE, pompeOn, action);
 }
 
 void humidificateur (const int action)
 {
-  controller (BRUMISATEUR, &fogOn, action, "le brumisateur");
+  controller (BRUMISATEUR, fogOn, action);
 }
 
 void ventilation (const int action)
 {
-  controller (VENTILATION, &ventOn, action, "la ventilation");
+  controller (VENTILATION, ventOn, action);
 }
 
 void chauffage (const int action)
 {
-  controller (CHAUFFAGE, &chaufOn, action, "le chauffage");
+  controller (CHAUFFAGE, chaufOn, action);
 }
 
 void refroidissement (const int action)
@@ -150,13 +140,13 @@ void reguleHum (float hum)
     ventilation(ALLUMER);
 }
 
-void msgTempArrived(MQTT::MessageData& md)
+void messageTempArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
   reguleTemp((((float*)message.payload)[0]));
 }
 
-void msgHumiArrived(MQTT::MessageData& md)
+void messageHumiArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
   reguleHum((((float*)message.payload)[0]));
@@ -165,9 +155,9 @@ void msgHumiArrived(MQTT::MessageData& md)
 void messageManipArrived(MQTT::MessageData& md)
 {
   MQTT::Message &message = md.message;
-  sprintf(printbuf, "Manipulation %s\n", (char*)message.payload);
-  Serial1.print(printbuf);//affiche le message sur le port série
   char* msg = (char*)message.payload; //stocke le message
+  Serial.print("Manipulation ");
+  Serial.println(msg);
   const char* delim = {":"};
   // coupe le message en deux: la fonction à utiliser et l'action à faire
   int appareil = (int)strtok(msg, delim);
@@ -189,25 +179,41 @@ void messageManipArrived(MQTT::MessageData& md)
   }
 }
 
+void afficherRcAnormal(char* msg, int rc, int successRc)
+{
+  if (rc != successRc)
+  Serial.print(msg);
+  Serial.println(rc);
+}
+
 // Connexion au Broker MQTT
 void connect()
 {
-  ipstack.connect(hostname, port);
+  sprintf(buf, "Connexion à %s:%d\n", hostname, port);
+  Serial.print(buf);
+  int rc = ipstack.connect(hostname, port); // tentative de connexion
+  afficherRcAnormal("TCP connect rc: ", rc, 1);
  
+  Serial.println("Connexion a MQTT");
   MQTTPacket_connectData data = MQTTPacket_connectData_initializer;       
   data.MQTTVersion = 3;
-  data.clientID.cstring = (char*)"arduino-relais";
-  client.connect(data);
-  
-  client.subscribe("InternetOfFrogs/Terrarium1/Valeur/Temperature", MQTT::QOS1, msgTempArrived);
-  client.subscribe("InternetOfFrogs/Terrarium1/Valeur/Humidite", MQTT::QOS1, msgHumiArrived);
-  client.subscribe("InternetOfFrogs/Terrarium1/Manipulation", MQTT::QOS1, msgManipArrived);
+  data.clientID.cstring = (char*)"Terrarium1";
+  rc = client.connect(data);
+  afficherRcAnormal("MQTT connect rc: ", rc, 0);
+
+  Serial.print("Souscrit a ");
+  Serial.println(topicManipulations);
+  rc = client.subscribe(topicManipulations, MQTT::QOS1, messageManipArrived);
+  afficherRcAnormal("MQTT manipulation subscribe rc: ", rc, 0);
 }
 
 void setup()
 {
+  Serial.begin(9600);
+  
   Ethernet.begin(mac,ip);
   connect();
+  
   pinMode(CHAUFFAGE, OUTPUT); // on va envoyer des ordres sur telle et telle broche
   pinMode(BRUMISATEUR, OUTPUT);
   pinMode(VENTILATION, OUTPUT);

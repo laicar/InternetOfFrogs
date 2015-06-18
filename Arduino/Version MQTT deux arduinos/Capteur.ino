@@ -1,6 +1,6 @@
 /**************************
  * Capteur.ino
- * Programme de lecture et d'envoi par IP selon le protocole MQTT
+ * Programme de lecture et d'envoi par Ethernet selon le protocole MQTT
  * des valeurs captées de lumière, de température et d'humidité
  * Basé sur les programmes du wiki LABAixBidouille
  * Contributeurs: Nicolas MULLER, Guy SINNIG, Carole LAI TONG

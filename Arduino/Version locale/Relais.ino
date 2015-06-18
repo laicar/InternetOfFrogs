@@ -27,81 +27,79 @@ bool fogOn = true;
 bool pompeOn = false;
 bool ventOn = true;
 
-void chauffage (int action)
-{
-  if (action == ALLUMER && !chaufOn)
-  {
-    digitalWrite(CHAUFF,LOW);
-    chaufOn = true;
-    Serial.println("Allume le chauffage");
-  }
-  else if (action == ETEINDRE && chaufOn)
-  {
-    digitalWrite(CHAUFF,HIGH);
-    chaufOn = false;
-    Serial.println("Eteint le chauffage");
-  }
-}
-
-void refroidissement (int action)
-{
-  if (action == ALLUMER)
-  {
-    humidificateur(ALLUMER);
-    ventilation(ALLUMER);
-  }
-  else if (action == ETEINDRE)
-  {
-    humidificateur(ETEINDRE);
-    ventilation(ETEINDRE);
-  }
-}
-
-void ventilation (int action)
-{
-  if (action == ALLUMER && !ventOn)
-  {
-    digitalWrite(VENT,LOW);
-    ventOn = true;
-    Serial.println("Allume la ventilation");
-  }
-  else if (action == ETEINDRE && ventOn)
-  {
-    digitalWrite(VENT,HIGH);
-    ventOn = false;
-    Serial.println("Eteint la ventilation");
-  }
-}
-
-void humidificateur (int action)
-{
-  if (action == ALLUMER && !fogOn)
-  {
-    digitalWrite(FOGGER,LOW);
-    fogOn = true;
-    Serial.println("Allume le mist fogger");
-  }
-  else if (action == ETEINDRE && fogOn)
-  {
-    digitalWrite(FOGGER,HIGH);
-    fogOn = false;
-    Serial.println("Eteint le mist fogger");
-  }
-}
-
-void lampe ()
-{
-  if (faitJour()) digitalWrite(LUMIERE,LOW);
-  else digitalWrite(LUMIERE,HIGH);
-  
-}
-
 bool faitJour ()
 {
-  DateTime now = rtc.now();
-  return (now.hour() > H_MATIN && now.hour() < H_SOIR);
+  DateTime now = rtc.now(); // Récupère la date et l'heure actuelles
+  return (now.hour() >= H_MATIN && now.hour() < H_SOIR);
 }
 
+void controller (const int appareil, bool& allume,
+                const int action, const char* nomAppareil)
+{
+  if (action == AUTO)
+  {
+    if (!allume && faitJour()) 
+    {
+      digitalWrite(appareil,LOW);
+      allume = true;
+    }
+    else if (allume && !faitJour())
+    {
+      digitalWrite(appareil,HIGH);
+      allume = false;
+    }
+  }
+  else if (action == ETEINDRE && allume)
+  {
+    digitalWrite(appareil, HIGH);
+    allume = false;
+    Serial1.print("Eteint ");
+    Serial1.println(nomAppareil);
+  }
+  else if (action == ALLUMER && !allume)
+  {
+    digitalWrite(appareil, LOW);
+    allume = true;
+    Serial1.print("Allume ");
+    Serial1.println(nomAppareil);
+  }
+  else
+  {
+    Serial1.print("Erreur avec ");
+    Serial1.println(nomAppareil);
+  }
+}
+
+void lampe(/*const int action*/)
+{
+  controller (LUMIERE, lumOn, /*action*/ AUTO, "la lampe");
+}
+
+void pompe (const int action)
+{
+  controller (POMPE, pompeOn, action, "la pompe a eau");
+}
+
+void humidificateur (const int action)
+{
+  controller (BRUMISATEUR, fogOn, action, "le brumisateur");
+}
+
+void ventilation (const int action)
+{
+  controller (VENTILATION, ventOn, action, "la ventilation");
+}
+
+void chauffage (const int action)
+{
+  controller (CHAUFFAGE, chaufOn, action, "le chauffage");
+}
+
+void refroidissement (const int action)
+{
+  humidificateur(action);
+  ventilation(action);
+}
 
 // /!\ Il y a des chances que ça se bloque quelquepart
 // entre le refroidissement et la régulation de l'humidité
@@ -146,8 +144,9 @@ void setup()
   void loop()
 {
   // TODO: lecture/reception valeurs captées...
-  float hum = 42.42;
-  float temp = 10.25;
+
+  float temp = 41.3;
+  float hum = 61.2;
 
   reguleTemp(temp);
   reguleHum(hum);
