@@ -118,32 +118,41 @@ void loop()
 /* If event.light = 0 lux the sensor is probably saturated
  * and no reliable data could be generated!
  * if event.light is +/- 4294967040 there was a float over/underflow */
-    Serial.println("Erreur luminosite");
+    Serial.println ("Erreur luminosite");
   }
   else
   {
+    Serial.print ("Luminosite: ");
+    Serial.print (event.light);
+    Serial.println (" lux");
     pushData(event.light, topicLuminosite); // envoie la valeur de luminosité sur le topic correspondant
   }
   // Température
   dht.temperature().getEvent(&event);
   if (isnan(event.temperature))
   {
-    Serial.println("Erreur temperature");
+    Serial.println ("Erreur temperature");
   }
   else
   {
-    pushData(event.temperature, topicTemperature);
+    Serial.print ("Temperature: ");
+    Serial.print (event.temperature);
+    Serial.print (" *C\t");
+    pushData (event.temperature, topicTemperature);
   }
   // Humidite
   dht.humidity().getEvent(&event);
   if (isnan(event.relative_humidity) || event.relative_humidity == 0.0)
   {
-    Serial.println("Erreur humidite");
+    Serial.println ("Erreur humidite");
   }
   else
   {
+    Serial.print ("Humidite: ");
+    Serial.print (event.relative_humidity);
+    Serial.println (" %");
     pushData(event.relative_humidity, topicHumidite);
   }
-  delay(5000); // attente de 5 secondes avant de recommencer la boucle
+  delay (600000); // attente de 10 minutes avant de recommencer la boucle
   if (!client.isConnected()) connect(); // si le client est déconnecté on le reconnecte
 }

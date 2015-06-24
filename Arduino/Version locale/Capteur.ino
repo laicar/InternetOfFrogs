@@ -2,21 +2,24 @@
  * Programme de lecture et d'affichage de la lumière,
  * de la température et de l'humidité via deux capteurs
  **************************/
-#include <DHT.h>
+
+#include <Wire.h>
+#include <Adafruit_Sensor.h> // Capteurs Adafruit unifiés
+#include <Adafruit_TSL2591.h> // Capteur de lumière TSL2591
+#include <DHT.h> // Capteur humidité/température
+#include <DHT_U.h> // Capteur humidité/température unifié
 
 /**************************
  * Déclaration et initialisation des variables
  * avec #define, toute instance du premier mot
  * sera remplacée par le deuxième dans le code
  **************************/
-#define DHTPIN 2 // la borne data du capteur est branchée sur la broche 2
-#define DHTTYPE DHT22 // on utilise un capteur humidité/température DHT11
 
-DHT dht(DHTPIN, DHTTYPE); // on indique la broche et le type de capteur
-float h = 0;  // initialisation de la variable d'humidité
-float t = 0;  // initialisation de la variable de température
-int mes = 0;  // initialisation de la variable d'éclairement
-int ldr = A0; // broche sur laquelle est branchée la borne data de la LDR (le capteur de lumière)
+// On utilise un capteur humidité/température DHT22
+// dont la borne data est branchée sur la broche 2
+DHT_Unified dht(2, DHT22);
+// On indique le type de capteur de luminosité
+Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
 
 /**************************
  * La fonction setup d'Arduino est déroulée une seule fois après la remise à zéro
@@ -32,38 +35,47 @@ void setup()
  **************************/
 void loop()
 {
-/**************************
- * Mesure
- **************************/
-  mes = analogRead(ldr); // mesure de la lumière reçue par la LDR via sa résistance
-  mes = map (mes,0,1023,100,0);
-  // convertion de la résistance lue en pourcentage de luminosité (captable par ce capteur)
-  h = dht.readHumidity(); // mesure de l'humidité
-  t = dht.readTemperature(); // mesure de la température
-/**************************
- * Affichage
- **************************/
-  if (isnan(mes))
+  sensors_event_t event;
+
+  // Lumière
+  tsl.getEvent(&event);
+  if ((event.light == 0.0) ||
+      (event.light > 4294966000.0) ||
+      (event.light < -4294966000.0))
+  {
+/* If event.light = 0 lux the sensor is probably saturated
+ * and no reliable data could be generated!
+ * if event.light is +/- 4294967040 there was a float over/underflow */
     Serial.print( "Lecture de la luminosite impossible \t");
-  // message d'erreur au cas où la LDR n'arrive pas à lire correctement et ne renvoie pas un nombre
+  }
   else {
     Serial.print ("Luminosite: ");
-    Serial.print (mes); // affiche valeur luminosité mesuree et mappee
-    Serial.print (" % \t");
+    Serial.print (event.light);
+    Serial.print (" lux\t");
   }
-  if (isnan(t) || t == 0.00)
-    Serial.print( "Lecture de la temperature impossible \t"); // test d'erreur
-  else {
-    Serial.print("Temperature: ");
-    Serial.print(t); // affichage valeur température
-    Serial.print(" *C\t");
+  
+  // Température
+  dht.temperature().getEvent(&event);
+  if (isnan(event.temperature))
+  {
+    Serial.print( "Lecture de la temperature impossible \t");
   }
-  if (isnan(h) || h == 0.00)
-    Serial.println( "Lecture de l'humidite impossible"); // test d'erreur
   else {
-   Serial.print("Humidite: ");
-   Serial.print(h); // affichage valeur humidité
-   Serial.println(" %");
+    Serial.print ("Temperature: ");
+    Serial.print (event.temperature);
+    Serial.print (" *C\t");
+  }
+
+  // Humidite
+  dht.humidity().getEvent(&event);
+  if (isnan(event.relative_humidity))
+  {
+    Serial.println ( "Lecture de l'humidite impossible");
+  }
+  else {
+   Serial.print ("Humidite: ");
+   Serial.print (event.relative_humidity);
+   Serial.println (" %");
   }
   delay(1000); // attente de 1 seconde
 }

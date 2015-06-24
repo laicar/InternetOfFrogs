@@ -23,6 +23,6 @@ Système de domotique appliqué à un terrarium tropical communiquant via le pro
 
 **A propos des différentes versions**
 Les programmes sont découpables en parties "capteur" pour récolter des données, "relais" pour allumer ou éteindre les bonnes machines et "communication MQTT" pour les échanges de messages.
- - La version locale ne fait pas communiquer les arduinos, ils ne font qu'afficher sur le port série. C'est une version basique inexploitable en l'état.
- - La version à deux arduinos fait communiquer les deux arduinos (capteur et relais) par Ethernet avec le protocole MQTT. Il n'y a pas d'écriture sur le port série.
+ - La version locale ne fait pas communiquer les arduinos, ils ne font qu'afficher sur le port série. Ce sont des briques de code et ne constituent pas un système fonctionnel.
+ - La version à deux arduinos fait communiquer les deux arduinos (capteur et relais) par Ethernet avec le protocole MQTT. Il y a aussi écriture sur le port série.
  - Les versions à un arduino font à la fois capteur et relais sur une même carte. Il faut prévoir combien de composants seront branchés sur l'Arduino et voir le nombre de broches SCL et SDA pour choisir la carte appropriée. La version compacte n'a pas d'écriture sur le port série et peut être utilisée sur par exemple un Arduino Uno. La version basique écrit des messages et les erreurs rencontrées sur le port série mais est plus volumineuse et nécessite par exemple un Arduino Mega.
