@@ -15,20 +15,24 @@
 class MQTTTemperatureSensorListener: public FloatInputChangeListener {
 private:
 	MQTT::Client<IPStack, Countdown> client;
-	MQTT::Message message;
 	char* topic;
 public:
-	MQTTTemperatureSensorListener(MQTT::Client<IPStack, Countdown> client, String nomTerrarium);
+	MQTTTemperatureSensorListener(MQTT::Client<IPStack, Countdown> client, String nomTerrarium):client(client), topic(NULL) {
+		String topicStr = "InternetOfFrogs/" + nomTerrarium + "/Temperature";
+		topicStr.toCharArray(this->topic, topicStr.length()+1);
+	}
+
 	virtual ~MQTTTemperatureSensorListener();
 	virtual void operator()(float const oldState, float const newState) {
+		MQTT::Message message;
 		char* buf;
-		sprintf(buf, "%f", (float)newState); // met la valeur dans un tampon
+		sprintf(buf, "%f", (double)newState); // met la valeur dans un tampon
 		message.retained = false;
 		message.dup = false;
 		message.payload = (void*)buf;
 		message.qos = MQTT::QOS1;
 		message.payloadlen = strlen(buf)+1;
-		int rc = client.publish(topic, message);
+		client.publish(topic, message);
 	}
 };
 
