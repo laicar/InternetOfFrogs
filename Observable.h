@@ -11,16 +11,18 @@
 #include "Vector.h"
 #include "InputChangeListener.h"
 
+#define LISTENERS_DEFAULT_NUMBER 5
+
 template<typename Listener, typename StateType = bool>
 class Observable{
 public:
-	Observable(){}
+	Observable():listeners(LISTENERS_DEFAULT_NUMBER){}
 
 	virtual ~Observable(){}
 
 	void attach(Listener* listener) {
-		listeners.push_back(listener);
 		Serial.println("attach()");
+		listeners.push_back(listener);
 	}
 
 	void notify(StateType const oldState, StateType const newState){
