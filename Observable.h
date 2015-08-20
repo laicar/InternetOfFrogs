@@ -21,7 +21,6 @@ public:
 	virtual ~Observable(){}
 
 	void attach(Listener* listener) {
-		Serial.println("attach()");
 		listeners.push_back(listener);
 	}
 
