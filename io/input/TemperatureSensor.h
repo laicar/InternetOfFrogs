@@ -4,15 +4,14 @@
  *  Created on: 10 août 2015
  *      Author: warole
  */
-#include <Observable.h>
-#include <Adafruit_Sensor.h>
-#include <DHT_U.h>
-#include <DHT.h>
-
 #ifndef TEMPERATURESENSOR_H_
 #define TEMPERATURESENSOR_H_
 
-class TemperatureSensor: public Observable<FloatInputChangeListener> {
+#include <Observable.h>
+#include <Adafruit_Sensor.h>
+#include <DHT_U.h>
+
+class TemperatureSensor: public Observable<FloatInputChangeListener, float> {
 public:
 	TemperatureSensor();
 	virtual ~TemperatureSensor();
@@ -20,14 +19,13 @@ public:
 	virtual float const getState() const = 0;
 };
 
-class DHT22SensorAdapter: public TemperatureSensor {
+class DHTTemperatureSensorAdapter: public TemperatureSensor {
 public:
-	DHT22SensorAdapter(DHT_Unified * const dht):dht(dht), lastState(0.0), currentState(0.0){}
+	DHTTemperatureSensorAdapter(DHT_Unified * const dht):dht(dht), lastState(0.0), currentState(0.0){}
 
-	~DHT22SensorAdapter(){};
+	~DHTTemperatureSensorAdapter(){};
 
 	virtual void update(unsigned long currentTime){
-		Serial.println("update()");
 		currentState = getState();
 		if (currentState != lastState){
 			notify(lastState, currentState);
