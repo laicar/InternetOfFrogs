@@ -22,8 +22,7 @@ public:
 
 class TSL2591LuminositySensorAdapter: public LuminositySensor {
 public:
-	TSL2591LuminositySensorAdapter(Adafruit_TSL2591 * const tsl): tsl(tsl),lastState(0.0), currentState(0.0){
-	}
+	TSL2591LuminositySensorAdapter(Adafruit_TSL2591 * const tsl): tsl(tsl),lastState(0.0), currentState(0.0){}
 
 	~TSL2591LuminositySensorAdapter(){};
 
