@@ -4,13 +4,10 @@
  *  Created on: 20 août 2015
  *      Author: nedjar
  */
-
 #ifndef HUMIDITYSENSOR_H_
 #define HUMIDITYSENSOR_H_
 
 #include <Observable.h>
-#include <Adafruit_Sensor.h>
-#include <DHT_U.h>
 #include <DHT.h>
 #include <InputChangeListener.h>
 
@@ -24,7 +21,7 @@ public:
 
 class DHTHumiditySensorAdapter: public HumiditySensor {
 public:
-	DHTHumiditySensorAdapter(DHT_Unified * const dht):dht(dht), lastState(0.0), currentState(0.0){}
+	DHTHumiditySensorAdapter(DHT * const dht):dht(dht), lastState(0.0), currentState(0.0){}
 
 	~DHTHumiditySensorAdapter(){};
 
@@ -37,14 +34,11 @@ public:
 	}
 
 	virtual float const getState() const {
-		DHT_Unified::Humidity humidity = dht->humidity();
-		sensors_event_t event;
-		humidity.getEvent(&event);
-		return event.relative_humidity;
+		return dht->readHumidity();
 	}
 
 private:
-	DHT_Unified * const dht;
+	DHT * const dht;
 	float lastState;
 	float currentState;
 };
