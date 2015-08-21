@@ -1,70 +1,131 @@
-
 #include "ioFrogs.h"
+
+#define WARN Serial.println
+
+#define MQTTCLIENT_QOS2 1
+
+#include <SPI.h>
+#include <Ethernet.h>
+#include <IPStack.h>
+#include <Countdown.h>
+#include <MQTTClient.h>
+#include <MQTTFloatSender.h>
+#include <DHT.h>
 #include <TemperatureSensor.h>
 #include <HumiditySensor.h>
 #include <LuminositySensor.h>
+#include <MQTTTemperatureListener.h>
 #include <MQTTLightListener.h>
-#include <EthernetClient.h>
-#include <IPStack.h>
+#include <MQTTHumidityListener.h>
 
-//DHT_Unified dht (2, DHT11);
-//DHTTemperatureSensorAdapter temperatureSensor (&dht);
-//DHTHumiditySensorAdapter humiditySensor (&dht);
-Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
-TSL2591LuminositySensorAdapter luminositySensor(&tsl);
 EthernetClient c;
-IPStack ipstack (c);
-MQTT::Message message; // crée un message MQTT
-MQTT::Client<IPStack, Countdown> client = MQTT::Client<IPStack, Countdown>(ipstack);
-MQTTLightListener testObservateurLuminositeMQTT = MQTTLightListener (client, "reblochonrium");
-/*
-class TestObservateurTemperature : public FloatInputChangeListener
-{
+IPStack * ipstack;
+MQTT::Client<IPStack, Countdown> * client;
+
+byte mac[] = { 0x90, 0xA2, 0xDA, 0x0F, 0x76, 0xEC }; // replace with your device's MAC
+
+DHT * dht;
+DHTTemperatureSensorAdapter * temperatureSensor;
+DHTHumiditySensorAdapter * humiditySensor;
+
+Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
+TSL2591LuminositySensorAdapter * luminositySensor;
+
+MQTTTemperatureListener * mqttTempObs;
+MQTTHumidityListener * mqttHumObs;
+MQTTLightListener * mqttLightObs;
+
+class TemperatureLogger: public FloatInputChangeListener {
 	virtual void operator()(float const oldState, float const newState) {
 		Serial.print("temperature: ");
 		Serial.println(newState);
 	}
 };
 
-TestObservateurTemperature testObservateurTemperature;
+TemperatureLogger * tempObs;
 
-class TestObservateurHumidite : public FloatInputChangeListener
-{
+class HumidityLogger: public FloatInputChangeListener {
 	virtual void operator()(float const oldState, float const newState) {
 		Serial.print("humidite: ");
 		Serial.println(newState);
 	}
 };
+HumidityLogger * humObs;
 
-TestObservateurHumidite testObservateurHumidite;
-
-class TestObservateurLuminosite : public FloatInputChangeListener
-{
+class LightLogger: public FloatInputChangeListener {
 	virtual void operator()(float const oldState, float const newState) {
 		Serial.print("luminosite: ");
 		Serial.println(newState);
 	}
 };
+LightLogger * lightObs;
 
-TestObservateurLuminosite testObservateurLuminosite;
-*/
-void setup()
-{
+void connect() {
+	char hostname[] = "192.168.1.4";
+	int port = 1883;
+
+	Serial.print("Connecting to ");
+	Serial.print(hostname);
+	Serial.print(":");
+	Serial.println(port);
+
+	int rc = ipstack->connect(hostname, port);
+	if (rc != 1) {
+		Serial.print("rc from TCP connect is ");
+		Serial.println(rc);
+	}
+
+	Serial.println("MQTT connecting");
+	MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+	data.MQTTVersion = 3;
+	data.clientID.cstring = (char*) "arduino-sample";
+	rc = client->connect(data);
+	if (rc != 0) {
+		Serial.print("rc from MQTT connect is ");
+		Serial.println(rc);
+	}
+	Serial.println("MQTT connected");
+}
+
+void setup() {
 	Serial.begin(9600);
-	Serial.println("Frogs?");
-	//dht.begin();
-	tsl.begin();
-	tsl.setGain(TSL2591_GAIN_MED);
-	tsl.setTiming(TSL2591_INTEGRATIONTIME_200MS);
-	//temperatureSensor.attach(&testObservateurTemperature);
-	//humiditySensor.attach(&testObservateurHumidite);
-	luminositySensor.attach(&testObservateurLuminositeMQTT);
+	Ethernet.begin(mac);
+
+	ipstack = new IPStack(c);
+	client = new MQTT::Client<IPStack, Countdown>(*ipstack);
+
+	connect();
+
+	dht = new DHT(2, DHT22);
+	dht->begin();
+
+	temperatureSensor = new DHTTemperatureSensorAdapter(dht);
+	tempObs = new TemperatureLogger();
+	temperatureSensor->attach(tempObs);/*
+	mqttTempObs = new MQTTTemperatureListener(client);
+	temperatureSensor->attach(mqttTempObs);*/
+
+	humiditySensor = new DHTHumiditySensorAdapter(dht);
+	humObs = new HumidityLogger();
+	humiditySensor->attach(humObs);/*
+	mqttHumObs = new MQTTHumidityListener(client);
+	humiditySensor->attach(mqttHumObs);*/
+
+	luminositySensor = new TSL2591LuminositySensorAdapter(&tsl);
+	lightObs = new LightLogger();
+	luminositySensor->attach(lightObs);/*
+	mqttLightObs = new MQTTLightListener(client);
+	luminositySensor->attach(mqttLightObs);*/
 }
 
-void loop()
-{
-	//temperatureSensor.update(millis());
-	//humiditySensor.update(millis());
-	luminositySensor.update(millis());
-	delay(500);
+MQTT::Message message;
+
+void loop() {
+	if (!client->isConnected())
+		connect();
+	temperatureSensor->update(millis());
+	humiditySensor->update(millis());
+	luminositySensor->update(millis());
+	delay(1000);
 }
+
