@@ -7,7 +7,9 @@
 
 #include <LuminositySensor.h>
 
-LuminositySensor::LuminositySensor() {}
+LuminositySensor::LuminositySensor() {
+}
 
-LuminositySensor::~LuminositySensor() {}
+LuminositySensor::~LuminositySensor() {
+}
 
