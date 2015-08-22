@@ -1,14 +1,6 @@
 
 #include "ioFrogs.h"
 
-class MQTTHumidityListener;
-class MQTTLuminosityListener;
-class MQTTTemperatureListener;
-
-#define WARN Serial.println
-
-#define MQTTCLIENT_QOS2 1
-
 #include <SPI.h>
 #include <Ethernet.h>
 #include <EthernetClient.h>
@@ -120,8 +112,6 @@ void setup() {
 	luminositySensor->attach(mqttLuminosityListener);
 	/**/
 }
-
-MQTT::Message message;
 
 void loop() {
 	if (!client->isConnected())
