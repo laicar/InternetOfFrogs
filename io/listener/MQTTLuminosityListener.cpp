@@ -5,7 +5,8 @@
  *      Author: nedjar
  */
 
-#include <MQTTLightListener.h>
+#include <MQTTLuminosityListener.h>
 
-MQTTLightListener::~MQTTLightListener() {}
+MQTTLuminosityListener::~MQTTLuminosityListener() {
+}
 

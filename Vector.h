@@ -15,10 +15,12 @@ class Vector {
 	size_t _capacity; // Stores allocated capacity
 	Data *_data; // Stores data
 public:
-	Vector() :_size(0), _capacity(0), _data(0) {
+	Vector() :
+			_size(0), _capacity(0), _data(0) {
 	}
 
-	Vector(size_t capacity) :_size(0), _capacity(capacity), _data(0) {
+	Vector(size_t capacity) :
+			_size(0), _capacity(capacity), _data(0) {
 		resize(capacity);
 	}
 
@@ -64,7 +66,7 @@ private:
 		_capacity = _capacity ? _capacity * 2 : 1;
 	}
 
-	void resize(size_t capacity){
+	void resize(size_t capacity) {
 		Data* newdata = (Data*) malloc(capacity * sizeof(Data));
 		memcpy(newdata, _data, _size * sizeof(Data));
 		free(_data);

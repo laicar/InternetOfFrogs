@@ -11,7 +11,7 @@
 #include <DHT.h>
 #include <InputChangeListener.h>
 
-class HumiditySensor: public Observable<FloatInputChangeListener, float>  {
+class HumiditySensor: public Observable<InputChangeListener<float>, float> {
 public:
 	HumiditySensor();
 	virtual ~HumiditySensor();
@@ -21,13 +21,17 @@ public:
 
 class DHTHumiditySensorAdapter: public HumiditySensor {
 public:
-	DHTHumiditySensorAdapter(DHT * const dht):dht(dht), lastState(0.0), currentState(0.0){}
+	DHTHumiditySensorAdapter(DHT * const dht) :
+			dht(dht), lastState(0.0), currentState(0.0) {
+	}
 
-	~DHTHumiditySensorAdapter(){};
+	~DHTHumiditySensorAdapter() {
+	}
+	;
 
-	virtual void update(unsigned long currentTime){
+	virtual void update(unsigned long currentTime) {
 		currentState = getState();
-		if (currentState != lastState){
+		if (currentState != lastState) {
 			notify(lastState, currentState);
 			lastState = currentState;
 		}

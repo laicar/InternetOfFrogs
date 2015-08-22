@@ -8,23 +8,16 @@
 #ifndef IO_LISTENER_MQTTTEMPERATURELISTENER_H_
 #define IO_LISTENER_MQTTTEMPERATURELISTENER_H_
 
-#include <InputChangeListener.h>
-#include <MQTTPublisher.h>
 
-class MQTTTemperatureListener: public FloatInputChangeListener {
-private:
-	MQTT::Client<IPStack, Countdown> * client;
-	char* topic;
+#include <MQTTInputChangeListener.h>
+#include <MQTTSender.h>
+
+class MQTTTemperatureListener: public MQTTInputChangeListener<float> {
 public:
 	MQTTTemperatureListener(MQTT::Client<IPStack, Countdown> * client) :
-			client(client), topic("InternetOfFrogs/Temperature") {
-		Serial.println("creation mqtt temp listener");
-		Serial.println(this->topic);
+			MQTTInputChangeListener(client, "InternetOfFrogs/Temperature") {
 	}
 	virtual ~MQTTTemperatureListener();
-	virtual void operator()(float const oldState, float const newState) {
-		MQTTPublisher::send(client, topic, newState);
-	}
 };
 
 #endif /* IO_LISTENER_MQTTTEMPERATURELISTENER_H_ */
