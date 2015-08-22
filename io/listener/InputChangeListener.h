@@ -1,31 +1,37 @@
 #ifndef INPUT_CHANGE_LISTENER_H_
 #define INPUT_CHANGE_LISTENER_H_
 
-template <typename StateType>
+template<typename StateType>
 class InputChangeListener {
 public:
-	virtual void operator()(StateType const oldState, StateType const newState) = 0;
+	virtual void operator()(StateType const & oldState,
+			StateType const & newState) = 0;
 	virtual ~InputChangeListener() {
 	}
 };
 
-class DigitalInputChangeListener: public InputChangeListener<bool> {};
+typedef InputChangeListener<bool> DigitalInputChangeListener;
 
-class FloatInputChangeListener: public InputChangeListener<float> {};
+typedef InputChangeListener<float> FloatInputChangeListener;
 
-
-template <typename StateType>
+template<typename StateType>
 struct InputChangeListenerFunctionAdapter: public InputChangeListener<StateType> {
 
-	typedef void (*InputChangeListenerFunctionPointer)(StateType const oldState, StateType const newState);
+	typedef void (*InputChangeListenerFunctionPointer)(StateType const oldState,
+			StateType const newState);
 
 	InputChangeListenerFunctionPointer listener;
 
-	InputChangeListenerFunctionAdapter(InputChangeListenerFunctionPointer listener):listener(listener) {}
+	InputChangeListenerFunctionAdapter(
+			InputChangeListenerFunctionPointer listener) :
+			listener(listener) {
+	}
 
-	virtual ~InputChangeListenerFunctionAdapter() {}
+	virtual ~InputChangeListenerFunctionAdapter() {
+	}
 
-	virtual void operator()(StateType const oldState, StateType const newState) {
+	virtual void operator()(StateType const & oldState,
+			StateType const & newState) {
 		listener(oldState, newState);
 	}
 };

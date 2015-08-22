@@ -7,5 +7,6 @@
 
 #include <MQTTTemperatureListener.h>
 
-MQTTTemperatureListener::~MQTTTemperatureListener() {}
+MQTTTemperatureListener::~MQTTTemperatureListener() {
+}
 
