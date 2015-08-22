@@ -9,7 +9,7 @@
 #define IO_LISTENER_MQTTTEMPERATURELISTENER_H_
 
 #include <InputChangeListener.h>
-#include <MQTTFloatSender.h>
+#include <MQTTPublisher.h>
 
 class MQTTTemperatureListener: public FloatInputChangeListener {
 private:
@@ -23,7 +23,7 @@ public:
 	}
 	virtual ~MQTTTemperatureListener();
 	virtual void operator()(float const oldState, float const newState) {
-		MQTTFloatSender::send(client, topic, newState);
+		MQTTPublisher::send(client, topic, newState);
 	}
 };
 

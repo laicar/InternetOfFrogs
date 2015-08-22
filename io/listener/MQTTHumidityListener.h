@@ -9,7 +9,7 @@
 #define IO_LISTENER_MQTTHUMIDITYLISTENER_H_
 
 #include <InputChangeListener.h>
-#include <MQTTFloatSender.h>
+#include <MQTTPublisher.h>
 
 class MQTTHumidityListener: public FloatInputChangeListener {
 private:
@@ -24,7 +24,7 @@ public:
 	}
 	virtual ~MQTTHumidityListener();
 	virtual void operator()(float const oldState, float const newState) {
-		MQTTFloatSender::send(client, topic, newState);
+		MQTTPublisher::send(client, topic, newState);
 	}
 };
 

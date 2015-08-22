@@ -9,7 +9,7 @@
 #define IO_INPUT_MQTTLIGHTLISTENER_H_
 
 #include <InputChangeListener.h>
-#include <MQTTFloatSender.h>
+#include <MQTTPublisher.h>
 
 class MQTTLightListener: public FloatInputChangeListener {
 private:
@@ -25,7 +25,7 @@ public:
 	}
 	virtual ~MQTTLightListener();
 	virtual void operator()(float const oldState, float const newState) {
-		MQTTFloatSender::send(client, topic, newState);
+		MQTTPublisher::send(client, topic, newState);
 	}
 };
 
