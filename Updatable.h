@@ -10,7 +10,8 @@
 
 class Updatable {
 public:
-	virtual ~Updatable(){}
+	virtual ~Updatable() {
+	}
 	virtual void update(unsigned long currentTime) = 0;
 };
 

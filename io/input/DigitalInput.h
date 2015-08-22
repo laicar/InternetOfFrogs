@@ -5,7 +5,8 @@
 #include "DigitalIO.h"
 #include "InputChangeListener.h"
 
-class DigitalInput: public DigitalIO, public Observable<DigitalInputChangeListener> {
+class DigitalInput: public DigitalIO, public Observable<
+		DigitalInputChangeListener> {
 public:
 	static const int DEFAULT_DEBOUNCE_DELAY = 50;
 
@@ -17,11 +18,8 @@ public:
 		return (getReversed() xor digitalRead(getPin()));
 	}
 
-
 private:
-	unsigned long lastChangeTime;
-	bool lastState;
-	bool currentState;
+	unsigned long lastChangeTime;bool lastState;bool currentState;
 	unsigned int debounceDelay;
 };
 

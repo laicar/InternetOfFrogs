@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include "Updatable.h"
 
-class DigitalIO : public Updatable {
+class DigitalIO: public Updatable {
 public:
 	DigitalIO(int const pin, bool const reversed = false);
 	virtual ~DigitalIO() {
@@ -20,8 +20,7 @@ public:
 		return reversed;
 	}
 private:
-	int const pin;
-	bool const reversed;
+	int const pin;bool const reversed;
 };
 
 #endif /* DIGITALIO_H_ */
