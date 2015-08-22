@@ -7,5 +7,6 @@
 
 #include <MQTTHumidityListener.h>
 
-MQTTHumidityListener::~MQTTHumidityListener() {}
+MQTTHumidityListener::~MQTTHumidityListener() {
+}
 

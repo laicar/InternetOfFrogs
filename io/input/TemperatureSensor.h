@@ -11,7 +11,7 @@
 #include <InputChangeListener.h>
 #include <DHT.h>
 
-class TemperatureSensor: public Observable<FloatInputChangeListener, float> {
+class TemperatureSensor: public Observable<InputChangeListener<float>, float> {
 public:
 	TemperatureSensor();
 	virtual ~TemperatureSensor();
@@ -21,13 +21,17 @@ public:
 
 class DHTTemperatureSensorAdapter: public TemperatureSensor {
 public:
-	DHTTemperatureSensorAdapter(DHT * const dht):dht(dht), lastState(0.0), currentState(0.0){}
+	DHTTemperatureSensorAdapter(DHT * const dht) :
+			dht(dht), lastState(0.0), currentState(0.0) {
+	}
 
-	~DHTTemperatureSensorAdapter(){};
+	~DHTTemperatureSensorAdapter() {
+	}
+	;
 
-	virtual void update(unsigned long currentTime){
+	virtual void update(unsigned long currentTime) {
 		currentState = getState();
-		if (currentState != lastState){
+		if (currentState != lastState) {
 			notify(lastState, currentState);
 			lastState = currentState;
 		}
@@ -42,7 +46,5 @@ private:
 	float lastState;
 	float currentState;
 };
-
-
 
 #endif /* TEMPERATURESENSOR_H_ */

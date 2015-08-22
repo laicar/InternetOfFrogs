@@ -5,5 +5,5 @@
  *      Author: nedjar
  */
 
-#include <MQTTFloatSender.h>
+#include <MQTTSender.h>
 

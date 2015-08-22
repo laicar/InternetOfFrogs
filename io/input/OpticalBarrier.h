@@ -3,7 +3,6 @@
 
 #include "DigitalInput.h"
 
-
 class OpticalBarrier: public DigitalInput {
 public:
 	OpticalBarrier(int const pin, unsigned int debounceDelay =

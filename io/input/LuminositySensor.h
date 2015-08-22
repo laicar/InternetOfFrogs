@@ -13,22 +13,27 @@
 #include <Adafruit_TSL2561_U.h>
 #include <Adafruit_TSL2591.h>
 
-class LuminositySensor: public Observable<FloatInputChangeListener, float> {
+class LuminositySensor: public Observable<InputChangeListener<float>, float> {
 public:
 	LuminositySensor();
-	virtual ~LuminositySensor();virtual void update(unsigned long currentTime) = 0;
+	virtual ~LuminositySensor();
+	virtual void update(unsigned long currentTime) = 0;
 	virtual float const getState() const = 0;
 };
 
 class TSL2591LuminositySensorAdapter: public LuminositySensor {
 public:
-	TSL2591LuminositySensorAdapter(Adafruit_TSL2591 * const tsl): tsl(tsl),lastState(0.0), currentState(0.0){}
+	TSL2591LuminositySensorAdapter(Adafruit_TSL2591 * const tsl) :
+			tsl(tsl), lastState(0.0), currentState(0.0) {
+	}
 
-	~TSL2591LuminositySensorAdapter(){};
+	~TSL2591LuminositySensorAdapter() {
+	}
+	;
 
-	virtual void update(unsigned long currentTime){
+	virtual void update(unsigned long currentTime) {
 		currentState = getState();
-		if (currentState != lastState){
+		if (currentState != lastState) {
 			notify(lastState, currentState);
 			lastState = currentState;
 		}

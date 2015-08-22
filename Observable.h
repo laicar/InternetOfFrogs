@@ -14,17 +14,20 @@
 #define LISTENERS_DEFAULT_NUMBER 5
 
 template<typename Listener, typename StateType = bool>
-class Observable{
+class Observable {
 public:
-	Observable():listeners(LISTENERS_DEFAULT_NUMBER){}
+	Observable() :
+			listeners(LISTENERS_DEFAULT_NUMBER) {
+	}
 
-	virtual ~Observable(){}
+	virtual ~Observable() {
+	}
 
 	void attach(Listener* listener) {
 		listeners.push_back(listener);
 	}
 
-	void notify(StateType const oldState, StateType const newState){
+	void notify(StateType const oldState, StateType const newState) {
 		// Ping listeners
 		for (size_t i = 0; i < listeners.size(); ++i) {
 			Listener* listenerCour = listeners[i];
