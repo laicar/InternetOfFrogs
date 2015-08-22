@@ -13,19 +13,18 @@
 #include <Countdown.h>
 #include <stdlib.h> // floatToArray()
 
-template<typename StateType>
 class MQTTSender {
 public:
 	/**
 		 * Puts a float into a char array.
-		 * @param destination - the destination char array
+		 * @param destination - the char array to be filled
 		 * @param value - the float value to write
 		 * @param decimals - the number of decimals to write
 		 * Truncates the additionnal decimals and
 		 * does not handle being asked for more precision than the value already has.
 		 * May not give the exact value because of number encoding.
 		 */
-		static void floatToArray(char* destination, float value, short decimals = 1) {
+		static void floatToArray(char* destination, const float value, const short decimals = 1) {
 			long p[] = {0,10,100,1000,10000,100000,1000000,10000000,100000000,1000000000};
 			long integerPart = (long)value;
 			itoa(integerPart, destination, 10);

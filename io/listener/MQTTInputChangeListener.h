@@ -29,7 +29,7 @@ public:
 
 	virtual void operator()(StateType const & oldState,
 			StateType const & newState) {
-		MQTTSender<StateType>::send(client, topic, newState);
+		MQTTSender::send(client, topic, newState);
 	}
 };
 

@@ -56,20 +56,19 @@ void connect() {
 
 	int rc = ipstack->connect(hostname, port);
 	if (rc != 1) {
-		Serial.print("rc from TCP connect is ");
+		Serial.print("Error. rc from TCP connect is ");
 		Serial.println(rc);
 	}
-
-	Serial.println("MQTT connecting");
+	else Serial.println("MQTT connecting");
 	MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
 	data.MQTTVersion = 3;
-	data.clientID.cstring = (char*) "arduino-sample";
+	data.clientID.cstring = (char*) "arduino-InternetOfFrogs";
 	rc = client->connect(data);
 	if (rc != 0) {
-		Serial.print("rc from MQTT connect is ");
+		Serial.print("Error. rc from MQTT connect is ");
 		Serial.println(rc);
 	}
-	Serial.println("MQTT connected");
+	else Serial.println("MQTT connected");
 }
 
 void setup() {
