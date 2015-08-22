@@ -1,4 +1,9 @@
+
 #include "ioFrogs.h"
+
+class MQTTHumidityListener;
+class MQTTLuminosityListener;
+class MQTTTemperatureListener;
 
 #define WARN Serial.println
 
@@ -6,59 +11,47 @@
 
 #include <SPI.h>
 #include <Ethernet.h>
+#include <EthernetClient.h>
 #include <IPStack.h>
 #include <Countdown.h>
 #include <MQTTClient.h>
-#include <MQTTFloatSender.h>
+#include <MQTTSender.h>
+
 #include <DHT.h>
+#include <Adafruit_TSL2591.h>
+
 #include <TemperatureSensor.h>
 #include <HumiditySensor.h>
 #include <LuminositySensor.h>
+
+#include <TemperatureLogger.h>
+#include <HumidityLogger.h>
+#include <LuminosityLogger.h>
+
 #include <MQTTTemperatureListener.h>
-#include <MQTTLightListener.h>
+#include <MQTTLuminosityListener.h>
 #include <MQTTHumidityListener.h>
 
 EthernetClient c;
 IPStack * ipstack;
-MQTT::Client<IPStack, Countdown> * client;
+MQTT::Client<IPStack, Countdown>* client;
 
 byte mac[] = { 0x90, 0xA2, 0xDA, 0x0F, 0x76, 0xEC }; // replace with your device's MAC
 
 DHT * dht;
-DHTTemperatureSensorAdapter * temperatureSensor;
-DHTHumiditySensorAdapter * humiditySensor;
+DHTTemperatureSensorAdapter* temperatureSensor;
+DHTHumiditySensorAdapter* humiditySensor;
 
-Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
-TSL2591LuminositySensorAdapter * luminositySensor;
+Adafruit_TSL2591* tsl;
+TSL2591LuminositySensorAdapter* luminositySensor;
 
-MQTTTemperatureListener * mqttTempObs;
-MQTTHumidityListener * mqttHumObs;
-MQTTLightListener * mqttLightObs;
+MQTTTemperatureListener* mqttTempListener;
+MQTTHumidityListener* mqttHumListener;
+MQTTLuminosityListener* mqttLuminosityListener;
 
-class TemperatureLogger: public FloatInputChangeListener {
-	virtual void operator()(float const oldState, float const newState) {
-		Serial.print("temperature: ");
-		Serial.println(newState);
-	}
-};
-
-TemperatureLogger * tempObs;
-
-class HumidityLogger: public FloatInputChangeListener {
-	virtual void operator()(float const oldState, float const newState) {
-		Serial.print("humidite: ");
-		Serial.println(newState);
-	}
-};
-HumidityLogger * humObs;
-
-class LightLogger: public FloatInputChangeListener {
-	virtual void operator()(float const oldState, float const newState) {
-		Serial.print("luminosite: ");
-		Serial.println(newState);
-	}
-};
-LightLogger * lightObs;
+TemperatureLogger* tempListener;
+HumidityLogger* humListener;
+LuminosityLogger* luminosityListener;
 
 void connect() {
 	char hostname[] = "192.168.1.4";
@@ -89,33 +82,43 @@ void connect() {
 
 void setup() {
 	Serial.begin(9600);
-	Ethernet.begin(mac);
 
+	dht = new DHT(2, DHT22);
+	dht->begin();
+
+	tsl = new Adafruit_TSL2591(2591);
+	tsl->begin();
+
+	temperatureSensor = new DHTTemperatureSensorAdapter(dht);
+	tempListener = new TemperatureLogger();
+	temperatureSensor->attach(tempListener);
+
+	humiditySensor = new DHTHumiditySensorAdapter(dht);
+	humListener = new HumidityLogger();
+	humiditySensor->attach(humListener);
+
+	luminositySensor = new TSL2591LuminositySensorAdapter(tsl);
+	luminosityListener = new LuminosityLogger();
+	luminositySensor->attach(luminosityListener);
+
+	/**/
+	Ethernet.begin(mac);
 	ipstack = new IPStack(c);
 	client = new MQTT::Client<IPStack, Countdown>(*ipstack);
 
 	connect();
 
-	dht = new DHT(2, DHT22);
-	dht->begin();
+	/**/
+	mqttTempListener = new MQTTTemperatureListener(client);
+	temperatureSensor->attach(mqttTempListener);
 
-	temperatureSensor = new DHTTemperatureSensorAdapter(dht);
-	tempObs = new TemperatureLogger();
-	temperatureSensor->attach(tempObs);/*
-	mqttTempObs = new MQTTTemperatureListener(client);
-	temperatureSensor->attach(mqttTempObs);*/
-
-	humiditySensor = new DHTHumiditySensorAdapter(dht);
-	humObs = new HumidityLogger();
-	humiditySensor->attach(humObs);/*
-	mqttHumObs = new MQTTHumidityListener(client);
-	humiditySensor->attach(mqttHumObs);*/
-
-	luminositySensor = new TSL2591LuminositySensorAdapter(&tsl);
-	lightObs = new LightLogger();
-	luminositySensor->attach(lightObs);/*
-	mqttLightObs = new MQTTLightListener(client);
-	luminositySensor->attach(mqttLightObs);*/
+	/**/
+	mqttHumListener = new MQTTHumidityListener(client);
+	humiditySensor->attach(mqttHumListener);
+	/**/
+	mqttLuminosityListener = new MQTTLuminosityListener(client);
+	luminositySensor->attach(mqttLuminosityListener);
+	/**/
 }
 
 MQTT::Message message;
