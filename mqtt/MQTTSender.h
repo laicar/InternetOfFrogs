@@ -30,7 +30,7 @@ public:
 			itoa(integerPart, destination, 10);
 			while (*destination != '\0') destination++;
 			*destination++ = '.';
-			long decimalPart = abs((long)((value - integerPart + 0.000000000) * p[decimals]));
+			long decimalPart = abs((long)((value - integerPart) * p[decimals]));
 			itoa(decimalPart, destination, 10);
 		}
 		static void send(MQTT::Client<IPStack, Countdown> * client, const char* const topic, const char* const msg) {
