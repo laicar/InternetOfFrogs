@@ -14,7 +14,7 @@
 class MQTTLuminosityListener: public MQTTInputChangeListener<float> {
 public:
 	MQTTLuminosityListener(MQTT::Client<IPStack, Countdown> * client) :
-			MQTTInputChangeListener(client, "InternetOfFrogs/Lumiere") {
+			MQTTInputChangeListener(client, "InternetOfFrogs/Luminosite") {
 	}
 	virtual ~MQTTLuminosityListener();
 };
