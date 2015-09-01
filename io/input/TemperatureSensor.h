@@ -11,6 +11,9 @@
 #include <InputChangeListener.h>
 #include <DHT.h>
 
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
 class TemperatureSensor: public Observable<InputChangeListener<float>, float> {
 public:
 	TemperatureSensor();
@@ -43,6 +46,42 @@ public:
 
 private:
 	DHT * const dht;
+	float lastState;
+	float currentState;
+};
+
+class DS18B20TemperatureSensorAdapter: public TemperatureSensor {
+public:
+	DS18B20TemperatureSensorAdapter(DallasTemperature * const sensors, const uint8_t index) :
+			sensors(sensors), index(index), lastState(0.0), currentState(0.0) {
+	}
+
+	~DS18B20TemperatureSensorAdapter() {};
+
+	virtual void update(unsigned long currentTime) {
+		currentState = getState();
+		if (currentState != lastState) {
+			notify(lastState, currentState);
+			lastState = currentState;
+		}
+	}
+
+	virtual float const getState() const {
+		Serial.print("Requesting temperatures...");
+		sensors->requestTemperatures(); // Send the command to get temperatures
+		Serial.println("DONE");
+
+		Serial.print("Temperature for Device ");
+		Serial.print(index)
+		Serial.print(" is: ");
+		Serial.println(sensors->getTempCByIndex(index));
+
+		return sensors->getTempCByIndex(0);
+	}
+
+private:
+	DallasTemperature * const sensors;
+	const uint8_t index;
 	float lastState;
 	float currentState;
 };
