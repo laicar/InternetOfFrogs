@@ -14,10 +14,8 @@
 
 class MQTTReader {
 public:
-	typedef void (*messageHandler)(MQTT::MessageData&);
-
-	static void subscribe (MQTT::Client<IPStack, Countdown> * client, const char* const topic, messageHandler treatment){
-		int rc = client->subscribe(topic, MQTT::QOS1, treatment);
+	static void subscribe (MQTT::Client<IPStack, Countdown> * client, const char* const topic, FP<void, MQTT::MessageData&> treatment){
+		int rc = client->subscribe(topic, MQTT::QOS1, log);
 		if (rc != 0) {
 			Serial.print("Error. rc from MQTT subscribe is ");
 			Serial.println(rc);

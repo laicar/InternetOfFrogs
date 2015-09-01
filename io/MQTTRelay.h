@@ -23,8 +23,14 @@ private:
 public:
 	MQTTRelay(const int pin, MQTT::Client<IPStack, Countdown> * client, const char* const topic): pin(pin), state(), topic(topic), client(client){
 		pinMode(pin, OUTPUT);
-		this->state = digitalRead(pin);
-		MQTTReader::subscribe(this->client, this->topic, mqttDigitalWrite);
+
+		this->state = LOW;
+		digitalWrite(this->pin, LOW);
+
+		FP<void, MQTT::MessageData&> fp;
+		fp.attach(this, &MQTTRelay::mqttDigitalWrite);
+
+		MQTTReader::subscribe(this->client, this->topic, fp);
 	}
 	virtual ~MQTTRelay();
 	bool getState() {
@@ -32,6 +38,7 @@ public:
 		return state;
 	}
 	void mqttDigitalWrite (MQTT::MessageData& md) {
+		Serial.println("J'ai un message youpi !!!!");
 		char* payload = (char*)md.message.payload;
 		if (strcmp(payload, "ON") == 0) {
 			digitalWrite(this->pin, HIGH);
@@ -45,5 +52,6 @@ public:
 		}
 	}
 };
+
 
 #endif /* IO_MQTTRELAY_H_ */

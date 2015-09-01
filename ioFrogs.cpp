@@ -1,4 +1,3 @@
-
 #include "ioFrogs.h"
 
 #include <SPI.h>
@@ -8,6 +7,7 @@
 #include <Countdown.h>
 #include <MQTTClient.h>
 #include <MQTTSender.h>
+#include <MQTTReader.h>
 
 #include <DHT.h>
 #include <Adafruit_TSL2591.h>
@@ -23,6 +23,33 @@
 #include <MQTTTemperatureListener.h>
 #include <MQTTLuminosityListener.h>
 #include <MQTTHumidityListener.h>
+#include <MQTTRelay.h>
+
+namespace {
+const char* LUMIERE = "lumiere";
+const char* FOGGER = "fogger";
+const char* POMPE = "pompe";
+const char* VENTILATION = "ventilation";
+const char* LUMIERECHAUFFANTE = "lumierechauffante";
+const char* CHAUFFAGE = "chauffage";
+
+const uint8_t LUMIERE_IDX = 0;
+const uint8_t FOGGER_IDX = 1;
+const uint8_t POMPE_IDX = 2;
+const uint8_t VENTILATION_IDX = 3;
+const uint8_t LUMIERECHAUFFANTE_IDX = 4;
+const uint8_t CHAUFFAGE_IDX = 5;
+
+const uint8_t nbRelais = 6;
+
+const uint8_t relais[nbRelais] = { LUMIERE_IDX, FOGGER_IDX, POMPE_IDX,
+		VENTILATION_IDX, LUMIERECHAUFFANTE_IDX, CHAUFFAGE_IDX };
+
+const char* actionneurs[nbRelais] = { LUMIERE, FOGGER, POMPE, VENTILATION,
+		LUMIERECHAUFFANTE, CHAUFFAGE };
+
+char hostname[] = "192.168.1.2";
+const int port = 1883;
 
 EthernetClient* ethernetClient;
 IPStack* ipstack;
@@ -44,11 +71,9 @@ MQTTLuminosityListener* mqttLuminosityListener;
 TemperatureLogger* tempListener;
 HumidityLogger* humListener;
 LuminosityLogger* luminosityListener;
+}
 
 void connectToServer() {
-	char hostname[] = "192.168.1.4";
-	int port = 1883;
-
 	Serial.print("Connecting to ");
 	Serial.print(hostname);
 	Serial.print(":");
@@ -63,7 +88,7 @@ void connectToServer() {
 	Serial.println("OK");
 }
 
-void connectToMQTT(){
+void connectToMQTT() {
 	Serial.print("MQTT connecting...");
 	MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
 	data.MQTTVersion = 3;
@@ -72,12 +97,12 @@ void connectToMQTT(){
 	if (rc != 0) {
 		Serial.print("Error. rc from MQTT connect is ");
 		Serial.println(rc);
-	}
-	else Serial.println("MQTT connected");
+	} else
+		Serial.println("MQTT connected");
 	Serial.println("OK");
 }
 
-void connect(){
+void connect() {
 	connectToServer();
 	connectToMQTT();
 }
@@ -134,7 +159,69 @@ void initializeNetwork() {
 	ethernetClient = new EthernetClient();
 	ipstack = new IPStack(*ethernetClient);
 	mqttClient = new MQTT::Client<IPStack, Countdown>(*ipstack);
-	Serial.println("OK\n");
+	Serial.println("OK");
+}
+
+MQTTRelay* mqttRelay;
+
+//message profile: device:action
+//device among chauffage, ventilation, pompe, fogger, lumiere
+//action: ON or OFF
+void mqttRelayActivate(MQTT::MessageData& md) {
+	Serial.println("MQTT relay message received.");
+	char* payload = (char*) md.message.payload;
+	payload[md.message.payloadlen] = '\0';
+
+	const char* delim = { ":" };
+
+	const char* device = strtok(payload, delim);
+	const char* action = strtok(NULL, delim);
+	int etat;
+
+	if (strcmp(action, "ON") == 0) {
+		etat = HIGH;
+	} else if (strcmp(action, "OFF") == 0) {
+		etat = LOW;
+	} else {
+		Serial.print("Invalid action:");
+		Serial.println(action);
+		return;
+	}
+
+	Serial.print("Device : ");
+	Serial.print(device);
+	Serial.print(", Etat : ");
+	Serial.println(etat);
+
+	bool trouve = false;
+	for (uint8_t i = 0; i < nbRelais; i++) {
+		if (strcmp(device, actionneurs[i]) == 0) {
+			digitalWrite(relais[i], etat);
+			trouve = true;
+		}
+	}
+
+	if (!trouve) {
+		Serial.println("Invalid device:");
+		Serial.println(device);
+	}
+}
+
+void initializeRelays() {
+	for (uint8_t i = 0; i < nbRelais; i++) {
+		pinMode(relais[i], OUTPUT);
+		digitalWrite(relais[i], LOW);
+	}
+}
+
+void subscribeRelays() {
+	int rc = mqttClient->subscribe("InternetOfFrogs/Relais", MQTT::QOS2,
+			mqttRelayActivate);
+	if (rc != 0) {
+		Serial.print("rc from MQTT subscribe is ");
+		Serial.println(rc);
+	} else
+		Serial.println("MQTT subscribed");
 }
 
 void setup() {
@@ -144,14 +231,19 @@ void setup() {
 	Serial.println("Sponsorised by W4");
 	Serial.println("");
 
+	initializeRelays();
 	initializeTemperatureHumiditySensor();
 	initializeLuminositySensor();
 	initializeSensorAdapters();
-	loggersAttachment();
 
 	initializeNetwork();
 	connect();
+
+	loggersAttachment();
 	MQTTListenersAttachment();
+
+	subscribeRelays();
+
 	Serial.println("=========================");
 }
 
@@ -162,6 +254,7 @@ void loop() {
 	temperatureSensor->update(millis());
 	humiditySensor->update(millis());
 	luminositySensor->update(millis());
-	delay(1000);
+
+	mqttClient->yield(1000);
 }
 
